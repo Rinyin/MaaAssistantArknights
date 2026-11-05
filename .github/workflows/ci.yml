@@ -274,6 +274,7 @@ jobs:
           compression-level: 0
 
   ubuntu:
+    if: false
     name: Build for Ubuntu (${{ matrix.arch }})
     needs: meta
     runs-on: ubuntu-latest
@@ -399,6 +400,7 @@ jobs:
           compression-level: 0
 
   android:
+    if: false
     name: Build for Android (${{ matrix.arch }})
     needs: meta
     runs-on: ubuntu-latest
@@ -475,6 +477,7 @@ jobs:
           compression-level: 0
 
   macOS-Core:
+    if: false
     name: Build Core for macOS (${{ matrix.arch }})
     needs: meta
     runs-on: macos-26
@@ -543,6 +546,7 @@ jobs:
           path: install/
 
   macOS-GUI:
+    if: false
     name: Build GUI for macOS
     needs: [meta, macOS-Core]
     runs-on: macos-26
@@ -705,6 +709,7 @@ jobs:
           path: ${{ (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights') && 'release/MAA*' || 'src/MaaMacGui/MAA.xcarchive/**' }}
 
   avalonia:
+    if: false
     name: Build MAAUnified (Avalonia) ${{ matrix.name }}
     needs: [meta, windows, ubuntu, macOS-Core]
     runs-on: ${{ matrix.os }}
@@ -840,7 +845,7 @@ jobs:
   release:
     name: Publish Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [meta, windows, ubuntu, android, macOS-Core, macOS-GUI]
+    needs: [meta, windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write # 在本仓库创建 Release（客户端本体更新源）
