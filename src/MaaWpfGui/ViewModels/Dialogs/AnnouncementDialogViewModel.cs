@@ -130,12 +130,7 @@ public class AnnouncementDialogViewModel : Screen
     public bool HasEverScrolledToBottom
     {
         get => _hasEverScrolledToBottom;
-        set {
-            if (SetAndNotify(ref _hasEverScrolledToBottom, value) && value)
-            {
-                ButtonContent = LocalizationHelper.GetString("Common.Confirm");
-            }
-        }
+        set => SetAndNotify(ref _hasEverScrolledToBottom, value);
     }
 
     private ObservableCollection<AnnouncementSection> _announcementSections;
@@ -270,13 +265,6 @@ public class AnnouncementDialogViewModel : Screen
         ETagCache.Save();
     }
 
-    private int _notFinishedClick = 0;
-    private static readonly string[] _notFinishedMessages = [
-        LocalizationHelper.GetString("Announcement.NotFinishedConfirm"),
-        LocalizationHelper.GetString("Announcement.NotFinishedConfirm2"),
-        LocalizationHelper.GetString("Announcement.NotFinishedConfirm3"),
-    ];
-
     private string _buttonContent = LocalizationHelper.GetString("Common.Confirm");
 
     public string ButtonContent
@@ -285,28 +273,11 @@ public class AnnouncementDialogViewModel : Screen
         set => SetAndNotify(ref _buttonContent, value);
     }
 
+    /// <summary>
+    /// 关闭公告窗口。不要求滚动到底部，随时可直接关闭。
+    /// </summary>
     public void Close()
     {
-        if (HasEverScrolledToBottom || DoNotRemindThisAnnouncementAgain)
-        {
-            RequestClose();
-        }
-        else
-        {
-            if (_notFinishedClick < _notFinishedMessages.Length)
-            {
-                ButtonContent = _notFinishedMessages[_notFinishedClick++];
-            }
-            else
-            {
-                ButtonContent += "?\u200B";
-                _notFinishedClick++;
-                if (_notFinishedClick > 20)
-                {
-                    AchievementTrackerHelper.Instance.Unlock(AchievementIds.AnnouncementStubbornClick, forceStayOpen: true);
-                    RequestClose();
-                }
-            }
-        }
+        RequestClose();
     }
 }

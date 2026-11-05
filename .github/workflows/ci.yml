@@ -95,14 +95,17 @@ jobs:
         run: |
           this_tag=${{ steps.set_tag.outputs.tag }}
           if [[ '${{ steps.set_pre.outputs.prerelease }}' != 'false' ]]; then
-            last_tag=$(git describe --tags --match "v*" --abbrev=0 --exclude='${{ steps.set_tag.outputs.tag }}')
+            last_tag=$(git describe --tags --match "v*" --abbrev=0 --exclude='${{ steps.set_tag.outputs.tag }}' 2>/dev/null || echo "${{ steps.set_tag.outputs.tag }}")
           else
-            last_tag=$(git describe --tags --match "v*" --abbrev=0 --exclude='${{ steps.set_tag.outputs.tag }}' --exclude='*-*')
+            last_tag=$(git describe --tags --match "v*" --abbrev=0 --exclude='${{ steps.set_tag.outputs.tag }}' --exclude='*-*' 2>/dev/null || echo "${{ steps.set_tag.outputs.tag }}")
           fi
           echo >> CHANGELOG.md
-          echo "**Full Changelog**: [$last_tag -> $this_tag](https://github.com/MaaAssistantArknights/MaaAssistantArknights/compare/${last_tag}...${this_tag})" >> CHANGELOG.md
-          echo >> CHANGELOG.md
-          echo "[已有 Mirror酱 CDK？前往 Mirror酱 高速下载](https://mirrorchyan.com/zh/projects?rid=MAA&source=maagh-release)" >> CHANGELOG.md
+          echo "**Full Changelog**: [$last_tag -> $this_tag](${{ github.server_url }}/${{ github.repository }}/compare/${last_tag}...${this_tag})" >> CHANGELOG.md
+          # Mirror酱 的 MAA 资源对应上游发布的本体，fork 的 Release 不附带该下载入口
+          if [[ '${{ github.repository_owner }}' == 'MaaAssistantArknights' ]]; then
+            echo >> CHANGELOG.md
+            echo "[已有 Mirror酱 CDK？前往 Mirror酱 高速下载](https://mirrorchyan.com/zh/projects?rid=MAA&source=maagh-release)" >> CHANGELOG.md
+          fi
 
       - name: Upload changelog to GitHub
         uses: actions/upload-artifact@v7
@@ -550,7 +553,7 @@ jobs:
           show-progress: false
 
       - name: Install dependencies
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights')
         run: |
           brew install graphicsmagick imagemagick
           npm install -g create-dmg
@@ -572,14 +575,14 @@ jobs:
           path: install-x86_64
 
       - name: Install Developer ID certificate
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights')
         uses: apple-actions/import-codesign-certs@v7
         with:
           p12-file-base64: ${{ secrets.HGUANDL_SIGN_CERT_P12 }}
           p12-password: ${{ secrets.HGUANDL_SIGN_CERT_PASSWD }}
 
       - name: Download provisioning profiles
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights')
         uses: apple-actions/download-provisioning-profiles@v7
         with:
           bundle-id: "com.hguandl.MeoAsstMac"
@@ -636,7 +639,7 @@ jobs:
 
       - name: Build MAA
         run: |
-          if ${{ startsWith(github.ref, 'refs/tags/v') }}; then
+          if ${{ (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights') }}; then
             xcodebuild -skipMacroValidation -scheme MAA archive -archivePath MAA.xcarchive
           else
             xcodebuild -skipMacroValidation CODE_SIGNING_ALLOWED=NO -scheme MAA archive -archivePath MAA.xcarchive
@@ -644,26 +647,26 @@ jobs:
         working-directory: src/MaaMacGui
 
       - name: Export MAA
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights')
         run: |
           xcodebuild -exportArchive -archivePath MAA.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath Export
         working-directory: src/MaaMacGui
 
       - name: Create disk image
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights')
         run: |
           create-dmg Export/MAA.app
           mv MAA*.dmg MAA.dmg
         working-directory: src/MaaMacGui
 
       - name: Archive debug symbols
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights')
         run: |
           ditto -c -k --keepParent MAA.app.dSYM MAA.app.dSYM.zip
         working-directory: src/MaaMacGui/MAA.xcarchive/dSYMs
 
       - name: Place packages
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights')
         run: |
           GIT_TAG=${{ needs.meta.outputs.tag }}
           APP_DMG=MAA-${GIT_TAG}-macos-universal.dmg
@@ -673,7 +676,7 @@ jobs:
           mv src/MaaMacGui/MAA.xcarchive/dSYMs/MAA.app.dSYM.zip release/${APP_SYM}
 
       - name: Notarize image
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights')
         uses: nick-fields/retry@v4
         with:
           max_attempts: 3
@@ -689,7 +692,7 @@ jobs:
           ISSUER_ID: ${{ secrets.HGUANDL_APPSTORE_ISSUER }}
 
       - name: Attach notarization tickets
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights')
         run: |
           dmg="MAA-${{ needs.meta.outputs.tag }}-macos-universal.dmg"
           xcrun stapler staple ${dmg}
@@ -699,7 +702,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: MAA-macos-universal
-          path: ${{ startsWith(github.ref, 'refs/tags/v') && 'release/MAA*' || 'src/MaaMacGui/MAA.xcarchive/**' }}
+          path: ${{ (startsWith(github.ref, 'refs/tags/v') && github.repository_owner == 'MaaAssistantArknights') && 'release/MAA*' || 'src/MaaMacGui/MAA.xcarchive/**' }}
 
   avalonia:
     name: Build MAAUnified (Avalonia) ${{ matrix.name }}
@@ -839,6 +842,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [meta, windows, ubuntu, android, macOS-Core, macOS-GUI]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 在本仓库创建 Release（客户端本体更新源）
+      actions: write # 触发后续分发 / OTA 工作流
     steps:
       - name: Download MAA from GitHub
         uses: actions/download-artifact@v8
@@ -848,11 +854,11 @@ jobs:
       - name: Clean up files
         run: |
           mv -vf assets/changelog/* .
-          rm -rf assets/MAACore-macos-*
-          rm -rf assets/MAARuntime-*
-          rm -rf assets/MAAUnified-*
+          find assets -maxdepth 1 \( -name 'MAACore-macos-*' -o -name 'MAARuntime-*' -o -name 'MAAUnified-*' \) -exec rm -r -f {} +
+          if [[ "${{ github.repository_owner }}" != "MaaAssistantArknights" ]]; then
+            find assets -maxdepth 1 -name 'MAA-macos-universal' -exec rm -r -f {} +
+          fi
           cd assets
-          # find . -type f | xargs mv -fvt .
           find . -type f | while read f; do mv -fvt . $f; done
 
       - name: Publish release to GitHub
@@ -864,6 +870,7 @@ jobs:
           prerelease: ${{ needs.meta.outputs.prerelease != 'false' }}
 
       - name: Trigger release distribution workflows
+        if: github.repository_owner == 'MaaAssistantArknights'
         run: |
           gh workflow run --repo $GITHUB_REPOSITORY release-package-distribution.yml \
             -f release_tag="${{ needs.meta.outputs.tag }}" \
@@ -873,12 +880,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Trigger OTA release workflow # ref: https://docs.github.com/en/actions/using-workflows/triggering-a-workflow#triggering-a-workflow-from-a-workflow
+      - name: Trigger OTA release workflow
+        if: github.repository_owner == 'MaaAssistantArknights'
         run: |
           gh workflow run --repo $GITHUB_REPOSITORY release-ota.yml
         env:
           GH_TOKEN: ${{ secrets.MISTEOWORKFLOW }}
-
-          title: "Errors occured during release ${{ needs.meta.outputs.tag }}"
-          body: |
-            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

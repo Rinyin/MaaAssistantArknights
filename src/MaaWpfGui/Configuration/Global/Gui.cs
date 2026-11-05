@@ -99,11 +99,20 @@ public class Gui : NotifyPropertyChangedWithValue, IJsonOnDeserialized
     /// </summary>
     public Dictionary<MaaHotKeyAction, MaaHotKey?> HotKeys { get; set; } = [];
 
-    public int GuideStep { get; set; } = 0;
+    /// <summary>
+    /// 设置指引的总步数（完成值）。<c>GuideStep</c> 等于该值表示指引已完成 / 不显示。
+    /// </summary>
+    public const int GuideMaxStep = 7;
 
     /// <summary>
-    /// 当前教程版本号。升级到新版本教程（步骤重排、新增引导门槛等）时递增此值，
-    /// 已完成教程的用户经 <see cref="OnDeserialized"/> 按 <c>SettingsViewModel.GuideTutorialResetStepIndex</c> 重走一遍。
+    /// Gets or sets 设置指引进度。默认视为已完成：首次启动不再强制显示设置指引，
+    /// 需要时可在 ｢设置 - 界面设置｣ 手动重新开始。
+    /// </summary>
+    public int GuideStep { get; set; } = GuideMaxStep;
+
+    /// <summary>
+    /// 当前教程版本号。升级到新版本教程（步骤重排等）时递增此值；
+    /// 版本升级不再强制已完成教程的用户重走设置指引（见 <see cref="OnDeserialized"/>）。
     /// </summary>
     public const int CurrentGuideTutorialVersion = 2;
 
@@ -211,8 +220,7 @@ public class Gui : NotifyPropertyChangedWithValue, IJsonOnDeserialized
     }
 
     /// <summary>
-    /// 教程版本迁移：版本不一致时无论旧进度如何都重置到预留的重置目标步重走，仅触发一次。
-    /// 新装用户首次运行不经反序列化不触发本方法，版本号由 DoneGuide 完成时标记。
+    /// 教程版本迁移：只更新版本号，不再把已完成教程的用户强制重置回设置指引重走。
     /// </summary>
     [UsedImplicitly]
     public void OnDeserialized()
@@ -222,7 +230,6 @@ public class Gui : NotifyPropertyChangedWithValue, IJsonOnDeserialized
             return;
         }
 
-        GuideStep = ViewModels.UI.SettingsViewModel.GuideTutorialResetStepIndex;
         GuideTutorialVersion = CurrentGuideTutorialVersion;
     }
 }

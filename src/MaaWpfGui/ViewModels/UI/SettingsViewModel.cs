@@ -698,7 +698,7 @@ public class SettingsViewModel : Screen
 
     #region SettingsGuide
 
-    public static int GuideMaxStep => 7;
+    public static int GuideMaxStep => Gui.GuideMaxStep;
 
     public int GuideStepIndex
     {
@@ -708,20 +708,8 @@ public class SettingsViewModel : Screen
         }
     } = ConfigFactory.Root.Gui.GuideStep;
 
-    // ｢使用指引｣（含用户协议确认）步骤在 StepBar 中的索引，与 GuideUserControl.xaml 步骤区的 Visibility 条件对应
-    private const int GuideAgreementStepIndex = 1;
-
-    // ｢性能设置｣ 步骤在 StepBar 中的索引，与 GuideUserControl.xaml 步骤区的 Visibility 条件对应；｢跳过｣ 按钮自该步起显示
-    private const int GuidePerformanceSettingsStepIndex = 4;
-
     // ｢任务设置｣ 步骤在 StepBar 中的索引，与 GuideUserControl.xaml 步骤区的 Visibility 条件对应
     private const int GuideTaskSettingsStepIndex = 5;
-
-    /// <summary>
-    /// Gets the reserved reset target step index for tutorial-version migration：教程版本号递增时，
-    /// 已完成教程的用户由 Gui.OnDeserialized 重置到该步重新走一遍；需要完整重走保持 0，只补走部分步骤时改为对应索引。
-    /// </summary>
-    public static int GuideTutorialResetStepIndex => 0;
 
     /// <summary>
     /// 设置指引 ｢任务设置｣ 步骤的引导 gate 步骤，按引导顺序排列。
@@ -756,14 +744,13 @@ public class SettingsViewModel : Screen
     }
 
     /// <summary>
-    /// Gets 当前步骤 ｢下一步｣ 前置条件的本地化提示，已满足或无前置条件时为 null（即放行）。
-    /// 提示资源 key 在 <see cref="GuideGateStepLocalizationKey"/> 注册，UI 与按钮无需改动。
+    /// Gets 当前步骤的引导提示（仅作提示，不再禁用 ｢下一步｣），无提示时为 null。
+    /// 不再要求点击用户协议链接后才能进入下一步。
+    /// 提示资源 key 在 <see cref="GuideGateStepLocalizationKey"/> 注册。
     /// </summary>
-    [PropertyDependsOn(nameof(GuideStepIndex), nameof(GuideGateStep), nameof(GuideUserAgreementOpened))]
+    [PropertyDependsOn(nameof(GuideStepIndex), nameof(GuideGateStep))]
     public string? GuideNextGateTip => GuideStepIndex switch
     {
-        GuideAgreementStepIndex when !GuideUserAgreementOpened
-            => LocalizationHelper.GetString("Guide.Agreement.Tip"),
         GuideTaskSettingsStepIndex when GuideGateStep != GuideGate.None
             => LocalizationHelper.GetString(GuideGateStepLocalizationKey(GuideGateStep)),
         _ => null,
@@ -773,7 +760,7 @@ public class SettingsViewModel : Screen
 
     /// <summary>
     /// Gets or sets a value indicating whether the user agreement link has been clicked in the guide：
-    /// ｢使用指引｣ 步骤要求点击协议链接后才能进入下一步；状态不落盘，重看教程时重新要求点击。
+    /// 仅用于隐藏协议链接上的提示红点，不影响进入下一步；状态不落盘。
     /// </summary>
     public bool GuideUserAgreementOpened
     {
@@ -782,22 +769,9 @@ public class SettingsViewModel : Screen
     }
 
     /// <summary>
-    /// Gets 是否为本地调试环境：本地 Debug 构建或存在 DEBUG/DEBUG.txt 标记时
-    /// （编译期与文件判定，不依赖运行时版本链的求值时序）。
+    /// Gets a value indicating whether 设置指引左上角 ｢跳过｣ 按钮显示：任意步骤都可随时跳过。
     /// </summary>
-    private static bool IsLocalDebugEnvironment
-        =>
-#if DEBUG
-            true;
-#else
-            File.Exists("DEBUG") || File.Exists("DEBUG.txt");
-#endif
-
-    /// <summary>
-    /// Gets 设置指引左上角 ｢跳过｣ 按钮是否显示：调试环境恒显示，否则自 ｢性能设置｣ 步起显示。
-    /// </summary>
-    [PropertyDependsOn(nameof(GuideStepIndex))]
-    public bool GuideSkipVisible => IsLocalDebugEnvironment || GuideStepIndex >= GuidePerformanceSettingsStepIndex;
+    public bool GuideSkipVisible => true;
 
     // UI 绑定的方法（协议链接点击）
     [UsedImplicitly]
@@ -959,24 +933,10 @@ public class SettingsViewModel : Screen
         stepBar.Prev();
     }
 
-    // UI 绑定的方法：跳过设置指引；调试环境直接结束，其余先弹确认（含重看入口指引）再结束
+    // UI 绑定的方法：跳过设置指引，直接结束，不再弹出确认框
     [UsedImplicitly]
     public void SkipGuide()
     {
-        if (!IsLocalDebugEnvironment)
-        {
-            var result = MessageBoxHelper.Show(
-                LocalizationHelper.GetString("Guide.SkipPrompt"),
-                LocalizationHelper.GetString("Common.Tip"),
-                MessageBoxButton.OKCancel,
-                MessageBoxImage.Question,
-                ok: LocalizationHelper.GetString("Guide.Skip"));
-            if (result != MessageBoxResult.OK)
-            {
-                return;
-            }
-        }
-
         DoneGuide();
     }
 

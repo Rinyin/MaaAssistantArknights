@@ -21,8 +21,11 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
+  # 以下 create-tag / make-ota / make-ota-mac / release 均读写上游 MaaRelease，仅在上游仓库运行；
+  # fork 仓库改由 make-ota-fork 在自己的 Release 中生成 OTA 增量包
   create-tag:
     name: Create OTA Release Tag in MaaRelease
+    if: github.repository_owner == 'MaaAssistantArknights'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout MaaRelease
@@ -138,6 +141,60 @@ jobs:
           tag: ${{ needs.create-tag.outputs.release_tag }}
           prerelease: ${{ fromJSON(needs.create-tag.outputs.prerelease) }}
           overwrite: true
+
+  # 下游 fork（如 Rinyin/MaaAssistantArknights）专用：基于本仓库自己的 Release 生成 Windows OTA 增量包，
+  # 并上传到本仓库对应的 Release，供客户端从本仓库更新本体；不读写上游 MaaRelease。
+  make-ota-fork:
+    name: Build and Upload OTA for Windows to this repository (${{ matrix.target }})
+    if: github.repository_owner != 'MaaAssistantArknights'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x64
+          - arm64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+          path: MaaAssistantArknights
+
+      - name: Fetch release information
+        id: fetchReleaseInfo
+        run: |
+          mkdir -pv build-ota && cd build-ota
+
+          limit=${{ inputs.limit || 31 }}
+          limit=${limit%.*}
+          echo "Parsed limit: $limit"
+
+          # 第一行为最新 Release（OTA 目标版本），其余为可增量更新到它的旧版本
+          gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit "$limit" \
+            --json tagName --jq '.[].tagName' | tee ./config
+
+          echo "release_tag=$(head -n 1 ./config)" >> $GITHUB_OUTPUT
+
+      - name: Build OTA
+        if: steps.fetchReleaseInfo.outputs.release_tag != ''
+        run: |
+          cd build-ota
+          $GITHUB_WORKSPACE/MaaAssistantArknights/tools/OTAPacker/build.sh "$GITHUB_REPOSITORY" ./config ${{ matrix.target }} "$GITHUB_REPOSITORY"
+
+      - name: Upload OTA packages to this repository's release
+        if: steps.fetchReleaseInfo.outputs.release_tag != ''
+        run: |
+          cd build-ota
+          shopt -s nullglob
+          files=(MAAComponent-OTA-*-win-${{ matrix.target }}.zip)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::notice::No OTA package generated (no previous release to diff against)."
+            exit 0
+          fi
+          gh release upload "${{ steps.fetchReleaseInfo.outputs.release_tag }}" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
 
   make-ota-mac:
     name: Build and Upload OTA for macOS (Sparkle Appcast & Delta)

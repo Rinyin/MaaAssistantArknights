@@ -358,6 +358,7 @@
     <system:String x:Key="Announcement.NotFinishedConfirm2">就是在說你，還點！</system:String>
     <system:String x:Key="Announcement.NotFinishedConfirm3">還點</system:String>
     <system:String x:Key="Announcement.Title">公告</system:String>
+    <system:String x:Key="Announcement.UpdatedTip">公告已更新，可在 ｢{key=Settings.Title} - {key=Settings.About.Title}｣ 中點擊 ｢{key=Announcement.CheckAndDownload}｣ 查看</system:String>
     <system:String x:Key="Asst.Connection.AttachWindow.Failed">AttachWindow 綁定視窗失敗，請檢查截圖/輸入方式設定</system:String>
     <system:String x:Key="Asst.Connection.AttachWindow.Found">找到視窗 "{0}"</system:String>
     <system:String x:Key="Asst.Connection.AttachWindow.MultipleFound">找到 {0} 個 "{1}" 視窗，將使用第一個</system:String>
@@ -2557,7 +2558,7 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Notifications\Settin
 3. 請不要在其他地方討論內測版問題，例如使用者群組、評論區等。這會佔用公共資源且無法及時回饋和解決問題。
 4. 請勿將更新內測版的方法告知其他非開發使用者，以避免對他們造成不必要的困擾和風險。
 
-您可透過點擊 ｢{key=Settings.Title} - {key=Settings.IssueReport.Title}｣ 連結來取消該彈出視窗，感謝您的理解與配合！</system:String>
+此提示僅顯示一次，感謝您的理解與配合！</system:String>
     <system:String x:Key="VersionUpdate.OtaRejectedByBrokenInstall">目前安裝可能處於不完整狀態（資源損毀或上次更新失敗），OTA 增量更新檔無法修復，請改用完整安裝檔</system:String>
     <system:String x:Key="VersionUpdate.PendingFullUpdate.Description" xml:space="preserve">偵測到需要使用完整檔案進行更新。
 
@@ -2584,6 +2585,7 @@ D:\
     <system:String x:Key="VersionUpdate.ResourceVersion">資源版本</system:String>
     <system:String x:Key="VersionUpdate.SecurityWhitelist.Tip">建議將 MAA 所在資料夾加入對應軟體白名單後再試一次。</system:String>
     <system:String x:Key="VersionUpdate.Title">版本資訊</system:String>
+    <system:String x:Key="VersionUpdate.UpdatedTip">已更新至 {0}，可在 ｢{key=Settings.Title} - {key=Settings.Update.Title}｣ 中點擊 ｢{key=Settings.Update.ShowChangelog}｣ 查看更新內容</system:String>
     <system:String x:Key="VersionUpdate.UpdatedTo" xml:space="preserve">已更新：</system:String>
     <system:String x:Key="VersionUpdate.VersionMismatch">UI 和 Core 版本不一致: {0} 和 {1}，可能導致不可預測的行為。請勿手動替換檔案，或在更新時讓檔案處於被佔用狀態。\n\n{key=VersionUpdate.FullPackageUpgrade.Tip}</system:String>
     <system:String x:Key="VersionUpdate.WindowUpdateInfo.Tip">點擊立即更新</system:String>

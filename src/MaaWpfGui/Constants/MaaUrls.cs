@@ -27,6 +27,17 @@ public static class MaaUrls
 
     public const string GitHubApi = "https://api.github.com";
 
+    // 软件本体更新源：本仓库（Rinyin/MaaAssistantArknights）的 GitHub Release。
+    // 本体不再从上游（MaaApi / MaaRelease / MirrorChyan）下载，避免本仓库的自定义修改被上游本体覆盖；
+    // 资源更新（MaaResource）与公告仍从上游获取，不受此处影响。
+    public const string AppUpdateRepositoryOwner = "Rinyin";
+
+    public const string AppUpdateRepositoryName = "MaaAssistantArknights";
+
+    public const string AppUpdateRepository = $"https://github.com/{AppUpdateRepositoryOwner}/{AppUpdateRepositoryName}";
+
+    public const string AppUpdateReleasesApi = $"{GitHubApi}/repos/{AppUpdateRepositoryOwner}/{AppUpdateRepositoryName}/releases";
+
     public const string GitHubTokenSettings = "https://github.com/settings/tokens/new?description=MAA%20Update";
 
     public const string ResourceRepository = "https://github.com/MaaAssistantArknights/MaaResource";
@@ -101,7 +112,6 @@ public static class MaaUrls
     // MirrorChyan
     public const string MirrorChyanDomain = "https://mirrorchyan.com";
     public const string MirrorChyanWebsite = $"{MirrorChyanDomain}?source=maawpfgui-settings";
-    public const string MirrorChyanAppUpdate = $"{MirrorChyanDomain}/api/resources/MAA/latest";
     public const string MirrorChyanResourceUpdate = $"{MirrorChyanDomain}/api/resources/MaaResource/latest";
     public const string MirrorChyanManualUpdate = $"{MirrorChyanDomain}/zh/projects?rid=MAA&source=maawpfgui-manualupdate";
 

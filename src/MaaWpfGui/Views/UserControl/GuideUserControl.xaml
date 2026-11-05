@@ -80,7 +80,6 @@
                             Command="{s:Action NextGuide}"
                             CommandParameter="{Binding ElementName=GuideStepBar}"
                             Content="{DynamicResource Guide.Next}"
-                            IsEnabled="{c:Binding 'GuideNextGateTip == null'}"
                             Style="{StaticResource ButtonDashedPrimary}"
                             Visibility="{c:Binding 'GuideStepIndex less GuideMaxStep - 1'}" />
                         <Button

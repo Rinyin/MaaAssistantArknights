@@ -75,24 +75,25 @@ public class RootViewModel : Conductor<Screen>.Collection.OneActive
         if (SettingsViewModel.VersionUpdateSettings.VersionType == VersionUpdateSettingsUserControlModel.UpdateVersionType.Nightly &&
             !SettingsViewModel.VersionUpdateSettings.HasAcknowledgedNightlyWarning)
         {
+            // 内测版提示只显示一次，不再要求前往 ｢问题反馈｣ 页点击链接才能停止每次启动弹出
             MessageBoxHelper.Show(LocalizationHelper.GetString("VersionUpdate.NightlyWarning"));
+            SettingsViewModel.VersionUpdateSettings.HasAcknowledgedNightlyWarning = true;
         }
 
         Task.Run(async () => {
+            // 启动时只在后台拉取上游公告，不再自动弹出公告窗口；
+            // 公告内容有更新时仅给出不打断操作的 Growl 提示，用户可随时在 ｢设置 - 关于我们｣ 手动查看
+            string previousAnnouncement = Instances.AnnouncementDialogViewModel.AnnouncementInfo;
             await Instances.AnnouncementDialogViewModel.CheckAndDownloadAnnouncement();
-            if (Instances.AnnouncementDialogViewModel.DoNotRemindThisAnnouncementAgain)
-            {
-                return;
-            }
-
             if (Instances.AnnouncementDialogViewModel.DoNotShowAnnouncement)
             {
                 return;
             }
 
-            if (Instances.AnnouncementDialogViewModel.AnnouncementInfo != string.Empty)
+            string announcement = Instances.AnnouncementDialogViewModel.AnnouncementInfo;
+            if (announcement != string.Empty && announcement != previousAnnouncement)
             {
-                _ = Execute.OnUIThreadAsync(() => Instances.WindowManager.ShowWindow(Instances.AnnouncementDialogViewModel));
+                GrowlHelper.Info(LocalizationHelper.GetString("Announcement.UpdatedTip"));
             }
         });
 

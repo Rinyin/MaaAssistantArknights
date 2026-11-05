@@ -15,9 +15,12 @@ from .utils import Version
 
 
 class Updater:
-    # API的地址
-    Mirrors = ["https://api.maa.plus"]
-    Summary_json = "/MaaAssistantArknights/api/version/summary.json"
+    # 软件本体更新源：本仓库（Rinyin/MaaAssistantArknights）的 GitHub Releases
+    # 不再从上游 api.maa.plus / MaaRelease 下载本体，避免本仓库的自定义修改被上游本体覆盖
+    Release_repo = "Rinyin/MaaAssistantArknights"
+    Releases_api = f"https://api.github.com/repos/{Release_repo}/releases?per_page=30"
+    # nightly 版本号形如 v4.24.0-beta.1.d006.g27dee653d / v4.6.8-5.g1234567
+    Nightly_tag = re.compile(r"\.g[0-9a-f]{7,}$")
     # 完整包会整体提供的资源目录，MaaCore 会递归加载其中的文件且不允许重名
     # 新版本删除或移动的文件若残留在这些目录中，会导致资源加载失败
     Package_managed_dirs = re.compile(
@@ -70,42 +73,48 @@ class Updater:
         }
         return type_map.get(version, "stable")
 
+    @classmethod
+    def select_release(cls, releases, version_type):
+        """
+        按更新渠道从 Release 列表（GitHub 按创建时间倒序返回）中选出最新的一个
+        stable 只取正式版；beta 取正式版与公测版（排除 nightly）；alpha 取全部；草稿一律跳过
+        """
+        for release in releases:
+            tag = release.get("tag_name") or ""
+            if release.get("draft") or not tag:
+                continue
+            if version_type == "stable" and release.get("prerelease"):
+                continue
+            if version_type == "beta" and cls.Nightly_tag.search(tag):
+                continue
+            return release
+        return None
+
     def get_latest_version(self):
         """
-        从API获取最新版本
+        从本仓库的 GitHub Releases 获取最新版本
+        返回 (版本号, Release 详情)；获取失败时返回 (False, False)
         """
-        api_url = self.Mirrors
-        version_summary = self.Summary_json
+        version_type = self.map_version_type(self.version)
         retry = 3
-        for retry_times in range(retry):
-            # 在重试次数限制内依次请求每一个镜像
-            i = retry_times % len(api_url)
-            request_url = api_url[i] + version_summary
+        for _ in range(retry):
             try:
-                response_json = request.urlopen(request_url)
-                response_data = json.loads(response_json.read().decode("utf-8"))
-                """
-                解析JSON
-                e.g.
-                {
-                  "alpha": {
-                    "version": "v4.24.0-beta.1.d006.g27dee653d",
-                    "detail": "https://api.maa.plus/MaaAssistantArknights/api/version/alpha.json"
-                  },
-                  "beta": {
-                    "version": "v4.24.0-beta.1",
-                    "detail": "https://api.maa.plus/MaaAssistantArknights/api/version/beta.json"
-                  },
-                  "stable": {
-                    "version": "v4.23.3",
-                    "detail": "https://api.maa.plus/MaaAssistantArknights/api/version/stable.json"
-                  }
-                }
-                """
-                version_type = self.map_version_type(self.version)
-                latest_version = response_data[version_type]["version"]
-                version_detail = response_data[version_type]["detail"]
-                return latest_version, version_detail
+                req = request.Request(
+                    self.Releases_api,
+                    headers={
+                        "Accept": "application/vnd.github+json",
+                        "User-Agent": "MaaAssistantArknights-Python-Updater",
+                    },
+                )
+                response_json = request.urlopen(req, timeout=30)
+                releases = json.loads(response_json.read().decode("utf-8"))
+                release = self.select_release(releases, version_type)
+                if release is None:
+                    self.custom_print(
+                        f"{self.Release_repo} 中没有 {version_type} 渠道的 Release"
+                    )
+                    return False, False
+                return release["tag_name"], release
             except Exception as e:
                 self.custom_print(e)
                 continue
@@ -142,24 +151,17 @@ class Updater:
             else:
                 # Windows ARM64
                 system_platform = "win-arm64"
-        # 请求的是https://api.maa.plus/MaaAssistantArknights/api/version/stable.json，或其他版本类型对应的url
-        detail_json = request.urlopen(detail)
-        detail_data = json.loads(detail_json.read().decode("utf-8"))
-        assets_list = detail_data["details"]["assets"]  # 列表，子元素为字典
+        # detail 为 get_latest_version 返回的本仓库 GitHub Release 对象
+        assets_list = detail["assets"]  # 列表，子元素为字典
         # 找到对应系统和架构的版本
         for assets in assets_list:
             """
             结构示例
             assets:
             {
-                "name": "MAA-v4.24.0-beta.1.d006.g27dee653d-win-x64.zip",
+                "name": "MAA-v4.24.0-beta.1-win-x64.zip",
                 "size": 145677836,
-                "browser_download_url": "https://github.com/MaaAssistantArknights/MaaRelease/releases/download/v4.24.0-beta.1.d006.g27dee653d/MAA-v4.24.0-beta.1.d006.g27dee653d-win-x64.zip",
-                "mirrors": [
-                  "https://s3.maa-org.net:25240/maa-release/MaaAssistantArknights/MaaRelease/releases/download/v4.24.0-beta.1.d006.g27dee653d/MAA-v4.24.0-beta.1.d006.g27dee653d-win-x64.zip",
-                  "https://agent.imgg.dev/MaaAssistantArknights/MaaRelease/releases/download/v4.24.0-beta.1.d006.g27dee653d/MAA-v4.24.0-beta.1.d006.g27dee653d-win-x64.zip",
-                  "https://maa.r2.imgg.dev/MaaAssistantArknights/MaaRelease/releases/download/v4.24.0-beta.1.d006.g27dee653d/MAA-v4.24.0-beta.1.d006.g27dee653d-win-x64.zip"
-                ]
+                "browser_download_url": "https://github.com/Rinyin/MaaAssistantArknights/releases/download/v4.24.0-beta.1/MAA-v4.24.0-beta.1-win-x64.zip"
             }
             """
             assets_name = assets["name"]  # 示例值:MAA-v4.24.0-beta.1-win-arm64.zip
@@ -168,12 +170,8 @@ class Updater:
             pattern = r"^MAA-.*-" + re.escape(system_platform) + r"\.(zip|tar\.gz)$"
             match = re.match(pattern, assets_name)
             if match:
-                # Mirrors镜像列表
-                mirrors = assets["mirrors"]
-                github_url = assets["browser_download_url"]
-                # 加上GitHub的release链接
-                mirrors.append(github_url)
-                return mirrors, assets_name
+                # 只使用本仓库 Release 的下载链接，不再使用上游镜像
+                return [assets["browser_download_url"]], assets_name
         return False, False
 
     @staticmethod

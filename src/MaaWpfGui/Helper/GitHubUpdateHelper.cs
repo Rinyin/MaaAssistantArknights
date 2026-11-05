@@ -39,7 +39,10 @@ public static class GitHubUpdateHelper
     private static readonly ConcurrentDictionary<string, CachedManifest> _manifestCache = new();
     internal const string RateLimitedErrorKey = "VersionUpdate.RateLimited";
 
-    private sealed record CachedManifest(string ETag, JObject Body, int CredentialRevision);
+    // 匿名请求（未填写 GitHub Token）使用的缓存修订号，与凭据修订号区分
+    private const int AnonymousCacheRevision = int.MinValue;
+
+    private sealed record CachedManifest(string ETag, JToken Body, int CredentialRevision);
 
     public static Dictionary<string, string> CreateHeaders(string token) => new() {
         ["Accept"] = "application/vnd.github+json",
@@ -111,6 +114,17 @@ public static class GitHubUpdateHelper
 
     public static async Task<(JObject? Data, CheckUpdateRetT Ret)> RequestAsync(string url, UpdateCredentialRequest request, bool cacheManifest = false, bool rawContent = false)
     {
+        var (data, ret) = await RequestJsonAsync(url, request, cacheManifest, rawContent).ConfigureAwait(false);
+        if (ret != CheckUpdateRetT.OK)
+        {
+            return (null, ret);
+        }
+
+        return data is JObject obj ? (obj, CheckUpdateRetT.OK) : (null, CheckUpdateRetT.FailedToGetInfo);
+    }
+
+    private static async Task<(JToken? Data, CheckUpdateRetT Ret)> RequestJsonAsync(string url, UpdateCredentialRequest request, bool cacheManifest = false, bool rawContent = false)
+    {
         var credential = SettingsViewModel.VersionUpdateSettings.GitHubCredential;
         try
         {
@@ -143,25 +157,134 @@ public static class GitHubUpdateHelper
         }
     }
 
-    public static async Task<(JObject? Data, CheckUpdateRetT Ret)> GetLatestReleaseAsync(UpdateCredentialRequest request, string channel)
+    /// <summary>
+    /// 从本仓库（<see cref="MaaUrls.AppUpdateRepository"/>）的 GitHub Release 列表中获取当前渠道的最新版本。
+    /// 软件本体不再读取上游 MaaRelease 发布清单，避免本仓库的自定义修改被上游本体覆盖。
+    /// </summary>
+    /// <param name="request">本次 GitHub 凭据快照；为空时匿名请求公开 API（速率限制较低）。</param>
+    /// <param name="channel">更新渠道：stable / beta / alpha。</param>
+    /// <returns>GitHub Release 对象；没有符合渠道的 Release 时返回 <see cref="CheckUpdateRetT.AlreadyLatest"/>。</returns>
+    public static async Task<(JObject? Data, CheckUpdateRetT Ret)> GetLatestReleaseAsync(UpdateCredentialRequest? request, string channel)
     {
         if (channel is not ("stable" or "beta" or "alpha"))
         {
             return (null, CheckUpdateRetT.FailedToGetInfo);
         }
 
-        // Use the publisher's channel selection and combined full/OTA asset list.
-        // Authentication stays on api.github.com; this cache is separate from MAA API data.
-        var (manifest, ret) = await RequestAsync(
-            $"{MaaUrls.GitHubApi}/repos/MaaAssistantArknights/MaaRelease/contents/MaaAssistantArknights/api/version/{channel}.json?ref=main",
-            request, cacheManifest: true, rawContent: true).ConfigureAwait(false);
+        string url = $"{MaaUrls.AppUpdateReleasesApi}?per_page=30";
+        var (releases, ret) = request is { } check
+            ? await RequestJsonAsync(url, check, cacheManifest: true).ConfigureAwait(false)
+            : await RequestAnonymousJsonAsync(url).ConfigureAwait(false);
         if (ret != CheckUpdateRetT.OK)
         {
             return (null, ret);
         }
 
-        var release = GetManifestRelease(manifest)?.DeepClone() as JObject;
-        return (release, release is null ? CheckUpdateRetT.FailedToGetInfo : CheckUpdateRetT.OK);
+        if (releases is not JArray list)
+        {
+            return (null, CheckUpdateRetT.FailedToGetInfo);
+        }
+
+        if (SelectRelease(list, channel)?.DeepClone() is not JObject release)
+        {
+            // 本仓库尚未发布符合该渠道的 Release，视为没有可用的新版本
+            _logger.Information("No {Channel} release found in {Repository}", channel, MaaUrls.AppUpdateRepository);
+            return (null, CheckUpdateRetT.AlreadyLatest);
+        }
+
+        return (release, CheckUpdateRetT.OK);
+    }
+
+    /// <summary>
+    /// 按更新渠道选出目标 Release：stable 只取正式版；beta 取正式版与公测版（排除 nightly）；alpha 取全部。
+    /// 草稿、缺少资产列表或 tag 不是 SemVer 的 Release 一律跳过，同渠道内取版本号最大者。
+    /// </summary>
+    private static JObject? SelectRelease(JArray releases, string channel)
+    {
+        JObject? best = null;
+        SemVersion? bestVersion = null;
+        foreach (var release in releases.OfType<JObject>())
+        {
+            if (release.Value<bool>("draft") || release["assets"] is not JArray ||
+                release["tag_name"]?.Type != JTokenType.String ||
+                !SemVersion.TryParse(release.Value<string>("tag_name"), SemVersionStyles.AllowLowerV, out var version))
+            {
+                continue;
+            }
+
+            bool accepted = channel switch {
+                "stable" => !version.IsPrerelease && !release.Value<bool>("prerelease"),
+                "beta" => !IsNightlyVersion(version),
+                _ => true,
+            };
+
+            if (accepted && (bestVersion is null || version.CompareSortOrderTo(bestVersion) > 0))
+            {
+                best = release;
+                bestVersion = version;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// 匿名请求 GitHub 公开 API（未填写 GitHub Token 时使用）。使用 ETag 条件请求，304 响应不计入速率限制。
+    /// </summary>
+    private static async Task<(JToken? Data, CheckUpdateRetT Ret)> RequestAnonymousJsonAsync(string url)
+    {
+        try
+        {
+            var uri = new Uri(url);
+            if (!IsGitHubApiUrl(uri))
+            {
+                return (null, CheckUpdateRetT.FailedToGetInfo);
+            }
+
+            var headers = new Dictionary<string, string> {
+                ["Accept"] = "application/vnd.github+json",
+                ["X-GitHub-Api-Version"] = "2026-03-10",
+            };
+
+            if (_manifestCache.TryGetValue(url, out var cached) && cached.CredentialRevision == AnonymousCacheRevision)
+            {
+                headers["If-None-Match"] = cached.ETag;
+            }
+            else
+            {
+                cached = null;
+            }
+
+            using var response = await Instances.HttpService.GetAsync(uri, headers, HttpCompletionOption.ResponseContentRead).ConfigureAwait(false);
+            if (response.StatusCode == HttpStatusCode.NotModified && cached is not null)
+            {
+                return (cached.Body.DeepClone(), CheckUpdateRetT.OK);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var (_, isRateLimited) = await HttpService.GetRetryInfoAsync(response).ConfigureAwait(false);
+                _logger.Warning("Anonymous GitHub request failed: {StatusCode}, rate limited: {IsRateLimited}", (int)response.StatusCode, isRateLimited);
+                return (null, response.StatusCode == HttpStatusCode.NotFound ? CheckUpdateRetT.FailedToGetInfo : CheckUpdateRetT.NetworkError);
+            }
+
+            var json = JToken.Parse(await response.Content.ReadAsStringAsync().ConfigureAwait(false));
+            if (response.Headers.ETag is { } etag)
+            {
+                _manifestCache[url] = new(etag.ToString(), json.DeepClone(), AnonymousCacheRevision);
+            }
+            else
+            {
+                _manifestCache.TryRemove(url, out _);
+            }
+
+            return (json, CheckUpdateRetT.OK);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning("Failed to request GitHub anonymously: {ExceptionType}", ex.GetType().Name);
+            return (null, CheckUpdateRetT.NetworkError);
+        }
     }
 
     public static async Task<string?> ResolveAssetApiUrlAsync(JObject asset, UpdateCredentialRequest request)
@@ -201,9 +324,9 @@ public static class GitHubUpdateHelper
 
         try
         {
-            var release = await GetJsonAsync(
+            var release = (await GetJsonAsync(
                 $"{MaaUrls.GitHubApi}/repos/{segments[0]}/{segments[1]}/releases/tags/{Uri.EscapeDataString(tag)}",
-                request).ConfigureAwait(false);
+                request).ConfigureAwait(false)) as JObject;
             if (release?["tag_name"]?.Value<string>() != tag || release.Value<bool>("draft") || release["assets"] is not JArray assets)
             {
                 return null;
@@ -232,22 +355,10 @@ public static class GitHubUpdateHelper
         }
     }
 
-    private static JObject? GetManifestRelease(JToken? manifest)
-    {
-        if (manifest is not JObject data || data["version"]?.Type != JTokenType.String ||
-            !SemVersion.TryParse(data.Value<string>("version"), SemVersionStyles.AllowLowerV, out _) ||
-            data["details"] is not JObject release || release["assets"] is not JArray ||
-            release.Value<bool>("draft") || release["tag_name"]?.Value<string>() != data.Value<string>("version"))
-        {
-            return null;
-        }
-
-        return release;
-    }
-
+    // 软件本体更新包只允许来自本仓库的 Release，不再接受上游 MaaAssistantArknights / MaaRelease 的资产
     private static bool IsUpdateRepository(string owner, string repository) =>
-        owner.Equals("MaaAssistantArknights", StringComparison.OrdinalIgnoreCase) &&
-        (repository.Equals("MaaAssistantArknights", StringComparison.OrdinalIgnoreCase) || repository.Equals("MaaRelease", StringComparison.OrdinalIgnoreCase));
+        owner.Equals(MaaUrls.AppUpdateRepositoryOwner, StringComparison.OrdinalIgnoreCase) &&
+        repository.Equals(MaaUrls.AppUpdateRepositoryName, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsReleaseAssetApiUrl(Uri uri, string? repository = null)
     {
@@ -262,7 +373,7 @@ public static class GitHubUpdateHelper
             segments[3] == "releases" && segments[4] == "assets" && long.TryParse(segments[5], NumberStyles.None, CultureInfo.InvariantCulture, out long id) && id > 0;
     }
 
-    private static async Task<JObject?> GetJsonAsync(string url, UpdateCredentialRequest request, bool cacheManifest = false, bool rawContent = false)
+    private static async Task<JToken?> GetJsonAsync(string url, UpdateCredentialRequest request, bool cacheManifest = false, bool rawContent = false)
     {
         var uri = new Uri(url);
         if (!IsGitHubApiUrl(uri))
@@ -322,8 +433,8 @@ public static class GitHubUpdateHelper
         }
 
         var json = response.StatusCode == HttpStatusCode.NotModified
-            ? cached?.Body.DeepClone() as JObject
-            : JObject.Parse(await response.Content.ReadAsStringAsync(request.CancellationToken).ConfigureAwait(false));
+            ? cached?.Body.DeepClone()
+            : JToken.Parse(await response.Content.ReadAsStringAsync(request.CancellationToken).ConfigureAwait(false));
         if (response.StatusCode == HttpStatusCode.NotModified &&
             !response.Headers.Contains("GitHub-Authentication-Token-Expiration"))
         {
@@ -337,11 +448,11 @@ public static class GitHubUpdateHelper
             return null;
         }
 
-        if (cacheManifest && response.StatusCode != HttpStatusCode.NotModified && json is { } manifest && GetManifestRelease(manifest) is not null)
+        if (cacheManifest && response.StatusCode != HttpStatusCode.NotModified && json is { } manifest)
         {
             if (response.Headers.ETag is { } etag)
             {
-                _manifestCache[url] = new(etag.ToString(), (JObject)manifest.DeepClone(), request.Revision);
+                _manifestCache[url] = new(etag.ToString(), manifest.DeepClone(), request.Revision);
             }
             else
             {

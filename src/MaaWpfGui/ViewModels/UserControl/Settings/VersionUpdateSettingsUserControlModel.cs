@@ -564,12 +564,7 @@ public class VersionUpdateSettingsUserControlModel : PropertyChangedBase
             return;
         }
 
-        if (SettingsViewModel.VersionUpdateSettings.UpdateSource == UpdateSource.MirrorChyan && string.IsNullOrEmpty(SettingsViewModel.VersionUpdateSettings.MirrorChyanCdk))
-        {
-            ToastNotification.ShowDirect(LocalizationHelper.GetString("Settings.Update.MirrorChyan.SelectedButNoCdk"));
-            return;
-        }
-
+        // 软件本体固定从本仓库的 GitHub Release 更新，与 Mirror酱 CDK 无关，无需在此拦截未填写 CDK 的情况
         var ret = await Instances.VersionUpdateDialogViewModel.CheckAndDownloadVersionUpdate();
 
         var toastMessage = ret switch {

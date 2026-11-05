@@ -439,15 +439,11 @@ public partial class VersionUpdateDialogViewModel : Screen
     /// </summary>
     public static bool IsArm => OsArchitecture.StartsWith("arm");
 
-    private const string MaaUpdateApi = "version/summary.json";
     private const int UpdatePackageDownloadMaxAttempts = 3;
 
     private JObject? _latestJson;
     private JObject? _assetsObject;
 
-    private string? _mirrorcDownloadUrl;
-    private string? _mirrorcVersionName;
-    private string? _mirrorcReleaseNote;
     private bool _requiresFullPackageConfirmation;
 
     /// <summary>
@@ -528,19 +524,10 @@ public partial class VersionUpdateDialogViewModel : Screen
     public enum AppUpdateSource
     {
         /// <summary>
-        /// Maa API
-        /// </summary>
-        MaaApi,
-
-        /// <summary>
-        /// GitHub API
+        /// 本仓库（<see cref="MaaUrls.AppUpdateRepository"/>）的 GitHub Release，软件本体唯一的更新源。
+        /// 不再使用上游 MaaApi / MaaRelease / MirrorChyan，避免本仓库的自定义修改被上游本体覆盖。
         /// </summary>
         GitHub,
-
-        /// <summary>
-        /// MirrorChyan
-        /// </summary>
-        MirrorChyan,
     }
 
     /// <summary>
@@ -555,7 +542,7 @@ public partial class VersionUpdateDialogViewModel : Screen
     } = ConfigFactory.Root.Update.DoNotShowUpdate;
 
     /// <summary>
-    /// 如果是在更新后第一次启动，显示ReleaseNote弹窗，否则检查更新并下载更新包。
+    /// 如果是在更新后第一次启动，给出不打断操作的更新完成提示（不再自动弹出更新日志窗口），否则检查更新并下载更新包。
     /// </summary>
     /// <returns>Task</returns>
     public async Task ShowUpdateOrDownload()
@@ -565,9 +552,8 @@ public partial class VersionUpdateDialogViewModel : Screen
             IsFirstBootAfterUpdate = false;
             if (!DoNotShowUpdate)
             {
-                // 首启展示时 UpdateInfo 不经 setter（构造期从本地缓存读取），此处兜底触发头像下载
-                _ = DownloadMissingContributorAvatarsAsync(_updateInfo);
-                Instances.WindowManager.ShowWindow(this);
+                // 更新日志可随时在 ｢设置 - 更新设置 - 更新日志｣ 手动查看（届时再下载贡献者头像）
+                GrowlHelper.Info(LocalizationHelper.GetStringFormat("VersionUpdate.UpdatedTip", UpdateTag));
             }
         }
         else
@@ -683,9 +669,7 @@ public partial class VersionUpdateDialogViewModel : Screen
             }
 
             return source switch {
-                AppUpdateSource.MaaApi => await HandleUpdateFromGitHubRelease(),
                 AppUpdateSource.GitHub => await HandleUpdateFromGitHubRelease(_githubUpdateRequest),
-                AppUpdateSource.MirrorChyan => await HandleUpdateFromMirrorChyan(),
                 _ => CheckUpdateRetT.UnknownError,
             };
         }
@@ -794,7 +778,7 @@ public partial class VersionUpdateDialogViewModel : Screen
 
             if (curHash != null && latestHash != null)
             {
-                body = $"**Full Changelog**: [{curHash} -> {latestHash}](https://github.com/MaaAssistantArknights/MaaAssistantArknights/compare/{curHash}...{latestHash})";
+                body = $"**Full Changelog**: [{curHash} -> {latestHash}]({MaaUrls.AppUpdateRepository}/compare/{curHash}...{latestHash})";
             }
         }
 
@@ -935,65 +919,6 @@ public partial class VersionUpdateDialogViewModel : Screen
         toast.ShowUpdateVersion();
     }
 
-    private async Task<CheckUpdateRetT> HandleUpdateFromMirrorChyan()
-    {
-        if (string.IsNullOrEmpty(_mirrorcDownloadUrl))
-        {
-            return CheckUpdateRetT.FailedToGetInfo;
-        }
-
-        UpdateTag = _mirrorcVersionName ?? string.Empty;
-        UpdateInfo = _mirrorcReleaseNote ?? string.Empty;
-        SettingsViewModel.VersionUpdateSettings.NewVersionFoundInfo = $"{LocalizationHelper.GetString("VersionUpdate.NewVersionFound.Title")}: {UpdateTag}";
-
-        bool goDownload = SettingsViewModel.VersionUpdateSettings.AutoDownloadUpdatePackage;
-
-        ShowUpdateInfo(true, LocalizationHelper.GetString("VersionUpdate.NewVersionFound.GoWebpage"), false);
-
-        if (!goDownload)
-        {
-            OutputDownloadProgress(string.Empty, downloading: false);
-            return CheckUpdateRetT.NoNeedToUpdate;
-        }
-
-        string packageName = "MirrorChyanApp" + _mirrorcVersionName + ".zip";
-        string plannedPackagePath = GetPlannedUpdatePackagePath(packageName);
-        if (_requiresFullPackageConfirmation && !ConfirmFullPackageUpdate(plannedPackagePath))
-        {
-            _logger.Information("MirrorChyan full package download canceled by user before download: {PackagePath}", plannedPackagePath);
-            OutputDownloadProgress(string.Empty, downloading: false);
-            return CheckUpdateRetT.NoNeedToUpdate;
-        }
-
-        var downloaded = await DownloadFromMirrorChyan(_mirrorcDownloadUrl,
-                    packageName, _mirrorcCancellationToken);
-
-        if (downloaded.Success)
-        {
-            UpdatePackageName = packageName;
-            OutputDownloadProgress(downloading: false, output: LocalizationHelper.GetString("VersionUpdate.NewVersionDownloadCompleted.Title"));
-        }
-        else
-        {
-            if (ShowDownloadRateLimit(downloaded))
-            {
-                return CheckUpdateRetT.NoNeedToUpdate;
-            }
-
-            OutputDownloadProgress(downloading: false, output: LocalizationHelper.GetString("VersionUpdate.NewVersionDownloadFailed.Title"));
-            {
-                using var toast = new ToastNotification(LocalizationHelper.GetString("VersionUpdate.NewVersionDownloadFailed.Title"));
-                toast.AppendContentText(LocalizationHelper.GetString("VersionUpdate.NewVersionDownloadFailed.Description"))
-                     .Show();
-            }
-
-            return CheckUpdateRetT.NoNeedToUpdate;
-        }
-
-        AchievementTrackerHelper.Instance.Unlock(AchievementIds.MirrorChyanFirstUse);
-        return CheckUpdateRetT.OK;
-    }
-
     public async Task AskToRestart()
     {
         await AskToRestartCore(
@@ -1114,43 +1039,31 @@ public partial class VersionUpdateDialogViewModel : Screen
 
         // 先解析下载源并确认完整包覆盖风险，再执行下载；
         // 与其他完整包更新入口保持一致，用户拒绝时不必下载 200MB+ 的完整包
-        // 填写 Token 时通过 GitHub 更新响应验证并解析完整包，其他情况沿用更新源配置。
+        // 软件本体完整包只从本仓库的 GitHub Release 获取，不再走上游 MirrorChyan / MaaApi；
+        // 选择海外源并填写 Token 时使用 Token 认证请求，否则匿名请求 GitHub 公开 API。
         var settings = SettingsViewModel.VersionUpdateSettings;
         var source = settings.UpdateSource;
         var credential = settings.CurrentUpdateCredential;
         int revision = credential.Revision;
-        var request = await credential.BeginCheckAsync();
+        var request = source == UpdateSource.GitHub ? await credential.BeginCheckAsync() : null;
         if (source != settings.UpdateSource || revision != credential.Revision)
         {
             return IntegrityRepairResult.Canceled;
         }
 
-        var githubRequest = source == UpdateSource.GitHub ? request : null;
-        MirrorChyanRepairPackage? mirrorChyanPackage = null;
-        if (source == UpdateSource.MirrorChyan && request is { } mirrorRequest)
-        {
-            mirrorChyanPackage = await ResolveMirrorChyanRepairPackageAsync(mirrorRequest);
-        }
+        var releasePackage = await ResolveReleaseRepairPackageAsync(request);
         if (source != settings.UpdateSource || revision != credential.Revision)
         {
             return IntegrityRepairResult.Canceled;
         }
 
-        var releasePackage = mirrorChyanPackage is null
-            ? await ResolveReleaseRepairPackageAsync(githubRequest)
-            : null;
-        if (source != settings.UpdateSource || revision != credential.Revision)
-        {
-            return IntegrityRepairResult.Canceled;
-        }
-
-        if (mirrorChyanPackage is null && releasePackage is null)
+        if (releasePackage is null)
         {
             FailIntegrityRepair("Integrity repair: no full package source resolved");
             return IntegrityRepairResult.Failed;
         }
 
-        string plannedPackagePath = GetPlannedUpdatePackagePath(mirrorChyanPackage?.PackageName ?? releasePackage!.PackageName);
+        string plannedPackagePath = GetPlannedUpdatePackagePath(releasePackage.PackageName);
         if (!ConfirmFullPackageUpdate(plannedPackagePath))
         {
             _logger.Information("Integrity repair full package application canceled by user: {PackagePath}", plannedPackagePath);
@@ -1161,35 +1074,11 @@ public partial class VersionUpdateDialogViewModel : Screen
         }
 
         string? packagePath = null;
-        if (mirrorChyanPackage is not null)
+        _logger.Information("Integrity repair: downloading release full package {PackageName}", releasePackage.PackageName);
+        OutputDownloadProgress(LocalizationHelper.GetString("VersionUpdate.IntegrityRepair.Downloading"), downloading: true, globalSource: true);
+        if ((await DownloadGithubAssets(releasePackage.DownloadUrl, releasePackage.Asset, request)).Success)
         {
-            _logger.Information("Integrity repair: downloading full package {PackageName} from MirrorChyan", mirrorChyanPackage.PackageName);
-            OutputDownloadProgress(LocalizationHelper.GetString("VersionUpdate.IntegrityRepair.Downloading"), downloading: true, globalSource: false);
-            if ((await DownloadFromMirrorChyan(mirrorChyanPackage.DownloadUrl, mirrorChyanPackage.PackageName, mirrorChyanPackage.CancellationToken)).Success)
-            {
-                packagePath = GetPlannedUpdatePackagePath(mirrorChyanPackage.PackageName);
-            }
-            else
-            {
-                _logger.Warning("Integrity repair: MirrorChyan download failed, falling back to maaApi");
-            }
-        }
-
-        if (packagePath is null)
-        {
-            releasePackage ??= await ResolveReleaseRepairPackageAsync(githubRequest);
-            if (releasePackage is null)
-            {
-                FailIntegrityRepair("Integrity repair: no release full package resolved");
-                return IntegrityRepairResult.Failed;
-            }
-
-            _logger.Information("Integrity repair: downloading release full package {PackageName}", releasePackage.PackageName);
-            OutputDownloadProgress(LocalizationHelper.GetString("VersionUpdate.IntegrityRepair.Downloading"), downloading: true, globalSource: true);
-            if ((await DownloadGithubAssets(releasePackage.DownloadUrl, releasePackage.Asset, request)).Success)
-            {
-                packagePath = GetPlannedUpdatePackagePath(releasePackage.PackageName);
-            }
+            packagePath = GetPlannedUpdatePackagePath(releasePackage.PackageName);
         }
 
         if (packagePath is null)
@@ -1236,12 +1125,10 @@ public partial class VersionUpdateDialogViewModel : Screen
         OutputDownloadProgress(downloading: false, output: LocalizationHelper.GetString("VersionUpdate.IntegrityRepair.Failed"));
     }
 
-    private sealed record MirrorChyanRepairPackage(string PackageName, string DownloadUrl, CancellationToken CancellationToken);
-
     private sealed record ReleaseRepairPackage(string PackageName, JObject Asset, string DownloadUrl);
 
     /// <summary>
-    /// 获取当前更新渠道的 MirrorChyan / maaApi 标识（stable / beta / alpha）。
+    /// 获取当前更新渠道的标识（stable / beta / alpha），用于从本仓库的 Release 中按渠道选择版本。
     /// </summary>
     /// <returns>渠道标识字符串。</returns>
     private static string GetUpdateChannel()
@@ -1254,62 +1141,9 @@ public partial class VersionUpdateDialogViewModel : Screen
     }
 
     /// <summary>
-    /// 构造 MirrorChyan 更新查询 URL。
+    /// 从本仓库（<see cref="MaaUrls.AppUpdateRepository"/>）的 GitHub Release 解析当前渠道完整包的下载信息（不执行下载）。
     /// </summary>
-    /// <param name="cdk">MirrorChyan CDK。</param>
-    /// <param name="currentVersion">当前版本；传 null 时不携带，MirrorChyan 视为全新安装并直接返回完整包。</param>
-    /// <returns>查询 URL。</returns>
-    private static string BuildMirrorChyanUpdateUrl(string cdk, string? currentVersion)
-    {
-        string arch = IsArm ? "arm64" : "x64";
-        var spid = HardwareInfoUtility.GetMachineGuid().StableHash();
-        string currentVersionPart = string.IsNullOrEmpty(currentVersion) ? string.Empty : $"current_version={currentVersion}&";
-        return $"{MaaUrls.MirrorChyanAppUpdate}?{currentVersionPart}cdk={Uri.EscapeDataString(cdk)}&user_agent=MaaWpfGui&os=win&arch={arch}&channel={GetUpdateChannel()}&sp_id={spid}";
-    }
-
-    /// <summary>
-    /// 从 MirrorChyan 解析当前渠道完整包的下载信息（不执行下载）。
-    /// </summary>
-    /// <returns>解析结果；解析失败时返回 null，交给 maaApi 兜底。</returns>
-    private async Task<MirrorChyanRepairPackage?> ResolveMirrorChyanRepairPackageAsync(UpdateCredentialRequest check)
-    {
-        try
-        {
-            // 修复场景不传当前版本：MirrorChyan 视为全新安装，直接返回完整包，
-            // 避免已是最新版本时拿不到下载地址
-            string url = BuildMirrorChyanUpdateUrl(check.Value, currentVersion: null);
-            var (data, ret) = await MirrorChyanUpdateHelper.RequestAsync(url, check).ConfigureAwait(false);
-            check.CancellationToken.ThrowIfCancellationRequested();
-            if (ret != CheckUpdateRetT.OK)
-            {
-                return null;
-            }
-            string? downloadUrl = data?["data"]?["url"]?.ToString();
-            string? versionName = data?["data"]?["version_name"]?.ToString();
-            if (string.IsNullOrEmpty(downloadUrl) || string.IsNullOrEmpty(versionName))
-            {
-                // 交给 maaApi 兜底
-                return null;
-            }
-
-            // 文件名需符合完整包命名规范（MAA-vX.X.X-win-x64.zip），否则注册时的包名校验不通过
-            return new MirrorChyanRepairPackage($"MAA-{versionName}-win-{(IsArm ? "arm64" : "x64")}.zip", downloadUrl, check.CancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.Error(ex, "Failed to resolve full package from MirrorChyan for integrity repair");
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// 从 GitHub 或 MAA API 解析当前渠道完整包的下载信息（不执行下载）。
-    /// </summary>
-    /// <param name="request">本次 GitHub 凭据快照；为空时使用 MAA API。</param>
+    /// <param name="request">本次 GitHub 凭据快照；为空时匿名请求 GitHub 公开 API。</param>
     /// <returns>解析结果；解析失败时返回 null。</returns>
     private static async Task<ReleaseRepairPackage?> ResolveReleaseRepairPackageAsync(UpdateCredentialRequest? request)
     {
@@ -1318,35 +1152,22 @@ public partial class VersionUpdateDialogViewModel : Screen
         {
             string versionType = GetUpdateChannel();
 
-            JObject? release;
-            string? latestVersion;
-            if (request is { } check)
+            var (release, _) = await GitHubUpdateHelper.GetLatestReleaseAsync(request, versionType).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (release is null && request is not null)
             {
-                (release, _) = await GitHubUpdateHelper.GetLatestReleaseAsync(check, versionType).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
-                latestVersion = release?["tag_name"]?.ToString();
-                if (release is null)
-                {
-                    request = null;
-                    _logger.Warning("GitHub repair metadata unavailable, falling back to Maa API");
-                    var (_, json) = await Instances.MaaApiService.RequestMaaApiWithCache($"version/{versionType}.json", false).ConfigureAwait(false);
-                    release = json?["details"] as JObject;
-                    latestVersion = json?["version"]?.ToString();
-                }
-            }
-            else
-            {
-                var (_, json) = await Instances.MaaApiService.RequestMaaApiWithCache($"version/{versionType}.json", false).ConfigureAwait(false);
-                release = json?["details"] as JObject;
-                latestVersion = json?["version"]?.ToString();
+                request = null;
+                _logger.Warning("Authenticated GitHub repair metadata unavailable, falling back to anonymous request");
+                (release, _) = await GitHubUpdateHelper.GetLatestReleaseAsync(null, versionType).ConfigureAwait(false);
             }
 
+            string? latestVersion = release?["tag_name"]?.ToString();
             if (release?["assets"] is not JArray assets)
             {
                 return null;
             }
 
-            // 与 GetVersionDetailsByMaaApi 一致，只认 MAA-<版本>-win-<架构>.zip 命名，
+            // 与 ReadReleaseDetails 一致，只认 MAA-<版本>-win-<架构>.zip 命名，
             // 避免误选同样含 win 的 DebugSymbol 等组件资产
             if (string.IsNullOrEmpty(latestVersion))
             {
@@ -1467,115 +1288,47 @@ public partial class VersionUpdateDialogViewModel : Screen
             return (CheckUpdateRetT.NoNeedToUpdateDebugVersion, null);
         }
 
+        // 软件本体只从本仓库（MaaUrls.AppUpdateRepository）的 GitHub Release 检查更新，
+        // 不再走上游 MaaApi / MaaRelease / MirrorChyan，避免本仓库的自定义修改被上游本体覆盖。
+        // ｢更新源｣ 设置（海外源 / Mirror酱）此后只影响资源更新；选择海外源并填写 GitHub Token 时
+        // 使用 Token 认证请求以获得更高的速率限制，否则匿名请求 GitHub 公开 API。
         var settings = SettingsViewModel.VersionUpdateSettings;
         var source = settings.UpdateSource;
         var credential = settings.CurrentUpdateCredential;
         int revision = credential.Revision;
-        var request = await credential.BeginCheckAsync();
+        var request = source == UpdateSource.GitHub ? await credential.BeginCheckAsync() : null;
         if (source != settings.UpdateSource || revision != credential.Revision)
         {
             return (CheckUpdateRetT.NoNeedToUpdate, null);
         }
 
-        _githubUpdateRequest = source == UpdateSource.GitHub ? request : null;
-        if (source == UpdateSource.GitHub && request is { } check)
+        _githubUpdateRequest = request;
+        var (release, ret) = await GitHubUpdateHelper.GetLatestReleaseAsync(request, GetUpdateChannel());
+        if (ret == CheckUpdateRetT.NoNeedToUpdate || source != settings.UpdateSource || revision != credential.Revision)
         {
-            var (release, ret) = await GitHubUpdateHelper.GetLatestReleaseAsync(check, GetUpdateChannel());
-            if (ret == CheckUpdateRetT.NoNeedToUpdate || source != settings.UpdateSource || revision != credential.Revision)
-            {
-                return (CheckUpdateRetT.NoNeedToUpdate, null);
-            }
+            return (CheckUpdateRetT.NoNeedToUpdate, null);
+        }
 
-            if (release is not null)
-            {
-                return (ReadReleaseDetails(release, release["tag_name"]?.ToString()), AppUpdateSource.GitHub);
-            }
-
-            _logger.Warning("GitHub update metadata unavailable, falling back to Maa API");
-            var fallbackRet = await CheckUpdateByMaaApi();
+        if (release is null && request is not null && ret != CheckUpdateRetT.AlreadyLatest)
+        {
+            _logger.Warning("Authenticated GitHub update metadata unavailable, falling back to anonymous request");
+            _githubUpdateRequest = null;
+            (release, ret) = await GitHubUpdateHelper.GetLatestReleaseAsync(null, GetUpdateChannel());
             if (source != settings.UpdateSource || revision != credential.Revision)
             {
                 return (CheckUpdateRetT.NoNeedToUpdate, null);
             }
-
-            return (fallbackRet, AppUpdateSource.MaaApi);
         }
 
-        if (SettingsViewModel.VersionUpdateSettings.UpdateSource == UpdateSource.MirrorChyan)
+        if (release is null)
         {
-            try
-            {
-                var ret = await CheckUpdateByMirrorChyan(request);
-                if (source != settings.UpdateSource || revision != credential.Revision)
-                {
-                    return (CheckUpdateRetT.NoNeedToUpdate, null);
-                }
-
-                if (ret is CheckUpdateRetT.OK or CheckUpdateRetT.AlreadyLatest or CheckUpdateRetT.NoNeedToUpdate)
-                {
-                    return (ret, AppUpdateSource.MirrorChyan);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Failed to check update by MirrorChyan, rollback to maaApi");
-            }
+            return (ret, null);
         }
 
-        try
-        {
-            var ret = await CheckUpdateByMaaApi();
-            if (source != settings.UpdateSource || revision != credential.Revision)
-            {
-                return (CheckUpdateRetT.NoNeedToUpdate, null);
-            }
-
-            return (ret, AppUpdateSource.MaaApi);
-        }
-        catch (Exception ex)
-        {
-            _logger.Error(ex, "Failed to check update by Maa API.");
-            return (CheckUpdateRetT.FailedToGetInfo, AppUpdateSource.MaaApi);
-        }
-    }
-
-    private async Task<CheckUpdateRetT> CheckUpdateByMaaApi()
-    {
-        var (_, json) = await Instances.MaaApiService.RequestMaaApiWithCache(MaaUpdateApi);
-
-        if (json is null)
-        {
-            _logger.Error("Failed to get update info from MAA API.");
-            return CheckUpdateRetT.FailedToGetInfo;
-        }
-
-        string versionType = GetUpdateChannel();
-
-        var latestVersion = json[versionType]?["version"]?.ToString();
-
-        latestVersion ??= string.Empty;
-
-        if (!NeedToUpdate(latestVersion))
-        {
-            return CheckUpdateRetT.AlreadyLatest;
-        }
-
-        return await GetVersionDetailsByMaaApi(versionType);
-    }
-
-    private async Task<CheckUpdateRetT> GetVersionDetailsByMaaApi(string versionType)
-    {
-        var (_, json) = await Instances.MaaApiService.RequestMaaApiWithCache($"version/{versionType}.json", false);
-        if (json is null)
-        {
-            return CheckUpdateRetT.NetworkError;
-        }
-
-        return ReadReleaseDetails(json["details"] as JObject, json["version"]?.ToString());
+        return (ReadReleaseDetails(release, release["tag_name"]?.ToString()), AppUpdateSource.GitHub);
     }
 
     private UpdateCredentialRequest? _githubUpdateRequest;
-    private CancellationToken _mirrorcCancellationToken;
 
     private CheckUpdateRetT ReadReleaseDetails(JObject? release, string? latestVersion)
     {
@@ -1630,103 +1383,6 @@ public partial class VersionUpdateDialogViewModel : Screen
         }
 
         return CheckUpdateRetT.OK;
-    }
-
-    private async Task<CheckUpdateRetT> CheckUpdateByMirrorChyan(UpdateCredentialRequest? request)
-    {
-        _requiresFullPackageConfirmation = false;
-
-        _mirrorcCancellationToken = request?.CancellationToken ?? default;
-        var cdk = request?.Value ?? string.Empty;
-        string url = BuildMirrorChyanUpdateUrl(cdk, currentVersion: _curVersion);
-        var (data, ret) = await MirrorChyanUpdateHelper.RequestAsync(url, request);
-        if (ret != CheckUpdateRetT.OK || data is null)
-        {
-            return ret;
-        }
-
-        var version = data["data"]?["version_name"]?.ToString();
-        if (string.IsNullOrEmpty(version))
-        {
-            return CheckUpdateRetT.UnknownError;
-        }
-
-        if (!NeedToUpdate(version))
-        {
-            return CheckUpdateRetT.AlreadyLatest;
-        }
-
-        var (data1, ret1) = await TryWaitForMirrorChyanOtaAsync(url, data, request);
-        if (ret1 != CheckUpdateRetT.OK || data1 is null)
-        {
-            return ret1;
-        }
-
-        data = data1;
-
-        // 到这里已经确定有新版本了
-        _logger.Information("New version found: {Version}", version);
-
-        _mirrorcVersionName = version;
-        _mirrorcReleaseNote = data["data"]?["release_note"]?.ToString();
-
-        if (string.IsNullOrEmpty(cdk))
-        {
-            return CheckUpdateRetT.NoMirrorChyanCdk;
-        }
-
-        _mirrorcDownloadUrl = data["data"]?["url"]?.ToString();
-
-        return CheckUpdateRetT.OK;
-    }
-
-    /// <summary>
-    /// MirrorChyan 在收到首个请求后会开始打包 OTA，打包过程中返回完整包。
-    /// 等待 10s 后重试，通常此时 OTA 包已就绪；若重试后仍为完整包则走完整包更新途径。
-    /// </summary>
-    private async Task<(JObject? Data, CheckUpdateRetT Ret)> TryWaitForMirrorChyanOtaAsync(string url, JObject data, UpdateCredentialRequest? request)
-    {
-        if (data["data"]?["update_type"]?.ToObject<string>() != "full")
-        {
-            return (data, CheckUpdateRetT.OK);
-        }
-
-        _logger.Information("MirrorChyan returned full package, OTA may be building. Will retry after 10s.");
-        ToastNotification.ShowDirect(LocalizationHelper.GetString("VersionUpdate.MirrorChyan.BuildingOta"));
-        Instances.TaskQueueViewModel.AddLog(LocalizationHelper.GetString("VersionUpdate.NewVersionIsBeingBuilt"), UiLogColor.Info);
-
-        try
-        {
-            await Task.Delay(10000, request?.CancellationToken ?? default);
-        }
-        catch (OperationCanceledException)
-        {
-            return (null, CheckUpdateRetT.NoNeedToUpdate);
-        }
-
-        // 重试请求，检查 OTA 包是否已就绪
-        var (retryData, ret) = await MirrorChyanUpdateHelper.RequestAsync(url, request, preserveCredentialOnFailure: true);
-        if (ret is CheckUpdateRetT.CredentialError or CheckUpdateRetT.NoNeedToUpdate)
-        {
-            return (null, ret);
-        }
-        if (retryData != null && retryData["data"]?["update_type"]?.ToObject<string>() != "full")
-        {
-            // 重试成功，OTA 包已就绪，使用新的响应数据
-            _logger.Information("MirrorChyan OTA package ready after retry.");
-            return (retryData, CheckUpdateRetT.OK);
-        }
-
-        // 重试后仍是完整包或重试失败，走完整包更新途径
-        _logger.Warning("MirrorChyan still returning full package after retry (or retry failed).");
-        _requiresFullPackageConfirmation = true;
-        if (SettingsViewModel.VersionUpdateSettings.AutoDownloadUpdatePackage)
-        {
-            ToastNotification.ShowDirect(LocalizationHelper.GetString("VersionUpdate.NewVersionNoOtaPackage"));
-            Instances.TaskQueueViewModel.AddLog(LocalizationHelper.GetString("VersionUpdate.NewVersionNoOtaPackage"), UiLogColor.Warning);
-        }
-
-        return (data, CheckUpdateRetT.OK);
     }
 
     private bool NeedToUpdate(string latestVersion)
@@ -1821,27 +1477,8 @@ public partial class VersionUpdateDialogViewModel : Screen
             return await GitHubUpdateHelper.ResolveAssetApiUrlAsync(asset, check).ConfigureAwait(false);
         }
 
-        return asset["browser_download_url"]?.ToString();
-    }
-
-    private static async Task<HttpDownloadResult> DownloadFromMirrorChyan(string url, string filename, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var uri = new Uri(url);
-            return await DownloadUpdatePackageWithRetryAsync(
-                    () => Instances.HttpService.DownloadFileWithResultAsync(uri, filename, token: cancellationToken),
-                    uri, cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception)
-        {
-            return new(false);
-        }
+        // 只接受指向本仓库 Release 的下载地址，防止下载到上游本体
+        return GitHubUpdateHelper.GetBrowserDownloadUrl(asset);
     }
 
     private static async Task<HttpDownloadResult> DownloadUpdatePackageWithRetryAsync(Func<Task<HttpDownloadResult>> download, Uri uri, CancellationToken cancellationToken = default)

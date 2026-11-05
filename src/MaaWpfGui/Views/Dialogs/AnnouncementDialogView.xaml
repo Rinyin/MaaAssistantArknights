@@ -18,7 +18,6 @@
     MinHeight="550"
     d:DataContext="{d:DesignInstance {x:Type dialogs_vms:AnnouncementDialogViewModel}}"
     Icon="../../newlogo.ico"
-    ShowCloseButton="False"
     ShowMinButton="False"
     mc:Ignorable="d">
     <Grid Background="{DynamicResource MdXamlBackground}">
@@ -130,8 +129,7 @@
                     Margin="10,0"
                     HorizontalAlignment="Center"
                     VerticalContentAlignment="Center"
-                    IsChecked="{Binding DoNotRemindThisAnnouncementAgain}"
-                    IsEnabled="{c:Binding 'HasEverScrolledToBottom or DoNotRemindThisAnnouncementAgain'}">
+                    IsChecked="{Binding DoNotRemindThisAnnouncementAgain}">
                     <TextBlock
                         MaxWidth="150"
                         Text="{DynamicResource Announcement.DoNotRemindAgain}"

@@ -358,6 +358,7 @@
     <system:String x:Key="Announcement.NotFinishedConfirm2">Yes, you — still clicking</system:String>
     <system:String x:Key="Announcement.NotFinishedConfirm3">Still clicking</system:String>
     <system:String x:Key="Announcement.Title">Announcement</system:String>
+    <system:String x:Key="Announcement.UpdatedTip">The announcement has been updated. Open ｢{key=Settings.Title} - {key=Settings.About.Title}｣ and click ｢{key=Announcement.CheckAndDownload}｣ to view it.</system:String>
     <system:String x:Key="Asst.Connection.AttachWindow.Failed">AttachWindow failed, please check screencap/input method settings</system:String>
     <system:String x:Key="Asst.Connection.AttachWindow.Found">Found window "{0}"</system:String>
     <system:String x:Key="Asst.Connection.AttachWindow.MultipleFound">Found {0} "{1}" windows, using the first one</system:String>
@@ -2557,7 +2558,7 @@ Please note:
 3. Please do not discuss nightly build issues in other places, such as user groups or comment sections. This occupies public resources and prevents timely feedback and resolution.
 4. Do not share the method to enable nightly updates with non-developer users to avoid unnecessary confusion and risk.
 
-You can cancel this popup by clicking the ｢{key=Settings.Title} - {key=Settings.IssueReport.Title}｣ Report link. Thank you for your understanding and cooperation!</system:String>
+This notice is shown only once. Thank you for your understanding and cooperation!</system:String>
     <system:String x:Key="VersionUpdate.OtaRejectedByBrokenInstall">The installation may be incomplete (damaged resources or a previous update failure). OTA incremental packages cannot repair it; please use a full package instead.</system:String>
     <system:String x:Key="VersionUpdate.PendingFullUpdate.Description" xml:space="preserve">A full-package update is required.
 
@@ -2584,6 +2585,7 @@ Continue only after you have verified the directory layout and finished a manual
     <system:String x:Key="VersionUpdate.ResourceVersion">Resource Version</system:String>
     <system:String x:Key="VersionUpdate.SecurityWhitelist.Tip">add the MAA installation folder to that software's allowlist before trying again.</system:String>
     <system:String x:Key="VersionUpdate.Title">Version Information</system:String>
+    <system:String x:Key="VersionUpdate.UpdatedTip">Updated to {0}. Open ｢{key=Settings.Title} - {key=Settings.Update.Title}｣ and click ｢{key=Settings.Update.ShowChangelog}｣ to see what's new.</system:String>
     <system:String x:Key="VersionUpdate.UpdatedTo" xml:space="preserve">Updated Version:&#160;</system:String>
     <system:String x:Key="VersionUpdate.VersionMismatch">UI and Core versions mismatch: {0} and {1}, which may cause unpredictable behavior. Please do not manually replace files or occupy files during updates.\n\n{key=VersionUpdate.FullPackageUpgrade.Tip}</system:String>
     <system:String x:Key="VersionUpdate.WindowUpdateInfo.Tip">Click to update now</system:String>

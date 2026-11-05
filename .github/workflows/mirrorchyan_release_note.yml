@@ -7,6 +7,8 @@ on:
 jobs:
   mirrorchyan:
     name: Upload Release Note to MirrorChyan
+    # Mirror酱 的 MAA 资源对应上游发布的本体，fork 不应向其推送更新日志
+    if: github.repository_owner == 'MaaAssistantArknights'
     runs-on: macos-latest
 
     steps:
