@@ -1,0 +1,41 @@
+# 已人工审查、确认不属于强制类（或有意保留）的扫描命中。格式：模式\t文件\t去掉首尾空白的代码行
+agreement	Constants/MaaUrls.cs	public const string UserAgreement = "https://github.com/MaaAssistantArknights/MaaAssistantArknights/blob/dev-v2/terms-of-service.md";
+agreement	ViewModels/UI/SettingsViewModel.cs	GuideUserAgreementOpened = false;
+agreement	ViewModels/UI/SettingsViewModel.cs	GuideUserAgreementOpened = true;
+agreement	ViewModels/UI/SettingsViewModel.cs	get => _guideUserAgreementOpened;
+agreement	ViewModels/UI/SettingsViewModel.cs	private bool _guideUserAgreementOpened;
+agreement	ViewModels/UI/SettingsViewModel.cs	public bool GuideUserAgreementOpened
+agreement	ViewModels/UI/SettingsViewModel.cs	public void OnGuideUserAgreementClick()
+agreement	ViewModels/UI/SettingsViewModel.cs	set => SetAndNotify(ref _guideUserAgreementOpened, value);
+agreement	Views/UserControl/GuideUserControl.xaml	<TextBlock Style="{StaticResource HyperlinkTextBlockStyle}" Text="{DynamicResource Guide.Agreement.Link}" />
+agreement	Views/UserControl/GuideUserControl.xaml	<controls:TextBlock Text="{DynamicResource Guide.Agreement.Prefix}" />
+agreement	Views/UserControl/GuideUserControl.xaml	Click="{s:Action OnGuideUserAgreementClick}"
+agreement	Views/UserControl/GuideUserControl.xaml	NavigateUri="{Binding Source={x:Static constants:MaaUrls.UserAgreement}}"
+agreement	Views/UserControl/GuideUserControl.xaml	Visibility="{c:Binding 'GuideStepIndex == 1 and !GuideUserAgreementOpened'}" />
+auto-show-window	Main/Bootstrapper.cs	Instances.WindowManager.ShowWindow(rootViewModel);
+auto-show-window	Services/Managers/MainWindowManager.cs	WindowManager.ShowWindow(MainWindow);
+auto-show-window	ViewModels/UI/SettingsViewModel.cs	Instances.WindowManager.ShowWindow(Instances.AnnouncementDialogViewModel);
+auto-show-window	ViewModels/UserControl/Settings/AchievementSettingsUserControlModel.cs	WindowManager.ShowWindow(_achievementsWindow);
+auto-show-window	ViewModels/UserControl/Settings/ConnectSettingsUserControlModel.cs	WindowManager.ShowWindow(_imagePopupWindow);
+auto-show-window	ViewModels/UserControl/Settings/VersionUpdateSettingsUserControlModel.cs	Instances.WindowManager.ShowWindow(Instances.VersionUpdateDialogViewModel);
+countdown	Main/AsstProxy.cs	(_, _, true) => "Settings.Startup.AutoRunCountdown.PcClientOnly",
+countdown	Main/AsstProxy.cs	(true, false, _) => "Settings.Startup.AutoRunCountdown.TaskOnly",
+countdown	Main/AsstProxy.cs	(true, true, false) => "Settings.Startup.AutoRunCountdown.TaskAndEmulator",
+countdown	Main/AsstProxy.cs	(true, true, true) => "Settings.Startup.AutoRunCountdown.TaskAndPcClient",
+countdown	Main/AsstProxy.cs	LocalizationHelper.GetString("Settings.Startup.AutoRunCountdown.Title"),
+countdown	Main/AsstProxy.cs	_ => "Settings.Startup.AutoRunCountdown.EmulatorOnly",
+countdown	ViewModels/UI/TaskQueueViewModel.cs	var dialogUserControl = new Views.Dialogs.TextWithTimerDialogView(
+countdown	Views/Dialogs/TextWithTimerDialogView.xaml.cs	public TextWithTimerDialogView(string content, string tipContent, string buttonContent, double milliseconds)
+guide-reset	Helper/ConfigConverter.cs	ConfigFactory.Root.Gui.GuideStep = ConfigurationHelper.GetValue(ConfigurationKeys.GuideStepIndex, 0);
+guide-reset	Main/Bootstrapper.cs	ConfigFactory.Root.Gui.GuideStep = SettingsViewModel.GuideMaxStep;
+guide-reset	ViewModels/UI/SettingsViewModel.cs	ConfigFactory.Root.Gui.GuideStep = value;
+guide-reset	ViewModels/UI/SettingsViewModel.cs	GuideStepIndex = 0;
+startup-messagebox	Main/Bootstrapper.cs	MessageBoxHelper.Show(
+startup-messagebox	Main/Bootstrapper.cs	MessageBoxHelper.Show(LocalizationHelper.GetString("Boot.MultiInstanceUnderSamePath") + e.Message, "MAA", MessageBoxButton.OK, MessageBoxImage.Warning);
+startup-messagebox	Main/Bootstrapper.cs	MessageBoxHelper.Show(LocalizationHelper.GetString("Boot.MultiInstanceUnderSamePath"), "MAA", MessageBoxButton.OK, MessageBoxImage.Warning);
+startup-messagebox	Main/Bootstrapper.cs	Task.Run(() => MessageBoxHelper.Show(LocalizationHelper.GetString("Boot.SoftwareLocationWarning"), LocalizationHelper.GetString("Common.Error"), MessageBoxButton.OK, MessageBoxImage.Error));
+startup-messagebox	Main/Bootstrapper.cs	var ret = MessageBoxHelper.Show(
+startup-messagebox	ViewModels/UI/RootViewModel.cs	MessageBoxHelper.Show(
+startup-messagebox	ViewModels/UI/RootViewModel.cs	MessageBoxHelper.Show(LocalizationHelper.GetString("VersionUpdate.NightlyWarning"));
+startup-messagebox	ViewModels/UI/RootViewModel.cs	MessageBoxHelper.Show(recoveryMessage, LocalizationHelper.GetString("Error.ConfigurationBrokenCaption"), MessageBoxButton.OK, MessageBoxImage.Warning);
+startup-messagebox	ViewModels/UI/RootViewModel.cs	var repairChoice = MessageBoxHelper.Show(
