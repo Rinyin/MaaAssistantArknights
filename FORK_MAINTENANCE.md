@@ -241,3 +241,4 @@ gh api repos/Rinyin/MaaAssistantArknights/releases/tags/vNEW -q '{prerelease, dr
 | 版本 | 日期 | 上游基点 | 替换的文件 | 完整包 SHA256 |
 |---|---|---|---|---|
 | v6.21.4 | 2026-11-06 | 上游 `v6.21.4` + fork 补丁（合并基点 `170d04de2`） | `MAA.dll`、`MAA.deps.json`、`externals/System.Security.Cryptography.Pkcs.dll` | `c93303fe129f3e70b4bb27ad505e47c80869d22193d149856c1298ce53c4472a` |
+| v6.22.0 | 2026-11-11 | 上游 `v6.22.0` + fork 补丁（合并基点 `901e01c60`） | `MAA.dll`、`MAA.deps.json`、`externals/System.Security.Cryptography.Pkcs.dll` | `870e47974247a3e018cc36dc3f3d260afd7ea09afae74424d6d2346430a13c5f` |
