@@ -21,7 +21,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1520,7 +1519,7 @@ public class TaskQueueViewModel : Screen
     {
         Execute.OnUIThread(() => {
             // 复用既有集合以 CollectionChanged 增量更新，避免整表重建导致绑定闪烁
-            var inlines = StagesOfTodayInlines ?? new ObservableCollection<Inline>();
+            var inlines = StagesOfTodayInlines ?? [];
             inlines.Clear();
             inlines.Add(new Run(LocalizationHelper.GetString("TaskQueue.Stage.TodaysStage.Tip") + "\n"));
 
@@ -1544,6 +1543,25 @@ public class TaskQueueViewModel : Screen
     {
         get => _stagesOfTodayInlines;
         private set => SetAndNotify(ref _stagesOfTodayInlines, value);
+    }
+
+    private static Views.Dialogs.DailyReportDialogView? _dailyReportWindow;
+
+    /// <summary>
+    /// 打开作战日报窗口（Command 绑定入口）。
+    /// </summary>
+    public void OpenDailyReport()
+    {
+        if (_dailyReportWindow is null)
+        {
+            _dailyReportWindow = new Views.Dialogs.DailyReportDialogView();
+            _dailyReportWindow.Loaded += (_, _) => MaaWpfGui.Helper.WindowManager.MoveWindowToRootCenter(_dailyReportWindow);
+            _dailyReportWindow.Closed += (_, _) => {
+                _dailyReportWindow = null;
+            };
+        }
+
+        MaaWpfGui.Helper.WindowManager.ShowWindow(_dailyReportWindow);
     }
 
     public enum LogCardSplitMode
@@ -2029,7 +2047,7 @@ public class TaskQueueViewModel : Screen
             return;
         }
 
-        await LinkStartWithTasks(taskQueue, taskItem.Index);
+        await LinkStartWithTasks(taskQueue.Skip(taskItem.Index).ToArray());
     }
 
     /// <summary>
@@ -2465,7 +2483,7 @@ public class TaskQueueViewModel : Screen
 
         using var log = new LogScope(_logger);
         await TaskQueueSerializingLock.WaitAsync();
-        await LinkStartWithTasks(ConfigFactory.CurrentConfig.TaskQueue);
+        await LinkStartWithTasks(ConfigFactory.CurrentConfig.TaskQueue.ToArray());
         TaskQueueSerializingLock.Release();
     }
 
@@ -2513,7 +2531,7 @@ public class TaskQueueViewModel : Screen
     }
 #endif
 
-    public async Task LinkStartWithTasks(IEnumerable<BaseTask> tasks, int? startIndex = null)
+    public async Task LinkStartWithTasks(IEnumerable<BaseTask> tasks)
     {
         if (!_runningState.Idle)
         {
@@ -2614,6 +2632,11 @@ public class TaskQueueViewModel : Screen
         int participatingChainCount = 0;
         List<int> coreTaskIds = [];
         bool serializeFailed = false;
+
+        for (int i = 0; i < ConfigFactory.CurrentConfig.TaskQueue.Count; i++)
+        {
+            SetTaskItemStatus(i, TaskItemStatus.Skipped);
+        }
         foreach (var item in tasks)
         {
             var index = ConfigFactory.CurrentConfig.TaskQueue.IndexOf(item);
@@ -2622,9 +2645,8 @@ public class TaskQueueViewModel : Screen
                 item.TaskType,
                 item.NameOrTaskType,
                 item.IsEnable);
-            if ((startIndex is int firstTaskIndex && index < firstTaskIndex) || !IsTaskEnable(item))
+            if (!IsTaskEnable(item))
             {
-                SetTaskStatus(index, TaskItemStatus.Skipped);
                 continue;
             }
 
@@ -2647,16 +2669,15 @@ public class TaskQueueViewModel : Screen
                             itemViewModel.SetTaskIds(taskIdList);
                             participatingChainCount += taskIdList.Count(id => id > 0);
                         }
-
+                        SetTaskItemStatus(index, TaskItemStatus.Idle);
                         break;
                     case false:
                         serializeFailed = true;
                         AddLog(LocalizationHelper.GetStringFormat("TaskQueue.TaskSerialize.Error", LocalizationHelper.GetString(item.TaskType.LocalizationKey()), item.NameOrTaskType), UiLogColor.Error);
-                        SetTaskStatus(index, TaskItemStatus.Error);
+                        SetTaskItemStatus(index, TaskItemStatus.Error);
                         break;
                     case null:
                         AddLog(LocalizationHelper.GetStringFormat("TaskQueue.TaskAppend.Skip", LocalizationHelper.GetString(item.TaskType.LocalizationKey()), item.NameOrTaskType), UiLogColor.Info);
-                        SetTaskStatus(index, TaskItemStatus.Skipped);
                         break;
                 }
             }
@@ -2698,7 +2719,6 @@ public class TaskQueueViewModel : Screen
         AchievementTrackerHelper.Instance.SetProgress(AchievementIds.TaskChainKing, count);
 
         taskRet &= Instances.AsstProxy.AsstStart();
-
         if (taskRet)
         {
             AddLog(LocalizationHelper.GetString("TaskQueue.Running"));
@@ -2715,7 +2735,7 @@ public class TaskQueueViewModel : Screen
         AchievementTrackerHelper.Instance.MissionStartCountAdd();
         AchievementTrackerHelper.Instance.UseDailyAdd();
 
-        static void SetTaskStatus(int index, TaskItemStatus status)
+        static void SetTaskItemStatus(int index, TaskItemStatus status)
         {
             if (index < 0 || index >= Instances.TaskQueueViewModel.TaskItemViewModels.Count)
             {

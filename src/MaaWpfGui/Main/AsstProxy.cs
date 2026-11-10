@@ -1432,6 +1432,8 @@ public class AsstProxy
         {
             case AsstMsg.TaskChainStopped:
                 {
+                    // 手动停止、掉线、强制定时启动统一走到这里，把未定稿的作战日报 session 定稿
+                    DailyReportCollector.OnQueueStopped();
                     Instances.TaskQueueViewModel.SetStopped();
                 }
 
@@ -1875,6 +1877,15 @@ public class AsstProxy
                 {
                     if (details["what"]?.ToString() != "UnknownTask")
                     {
+                        // 访问好友失败被忽略、任务链仍报完成，单独提示（只认最外层 VisitBegin）
+                        if (details["taskchain"]?.ToString() == "Mall"
+                            && details["first"]?.Values<string>().Contains("VisitBegin") == true)
+                        {
+                            Instances.TaskQueueViewModel.AddLog(
+                                LocalizationHelper.GetString("Asst.TaskQueue.TaskError") + LocalizationHelper.GetString("Mall.Visiting"),
+                                UiLogColor.Warning);
+                        }
+
                         break;
                     }
 
@@ -2089,10 +2100,6 @@ public class AsstProxy
                             break;
 
                         /* 肉鸽相关 */
-                        case "ExitThenAbandon":
-                            Instances.TaskQueueViewModel.AddLog(LocalizationHelper.GetString("Asst.Roguelike.ExplorationAbandoned"), UiLogColor.ExplorationAbandonedIS);
-                            AchievementTrackerHelper.Instance.AddProgress(AchievementIds.RoguelikeRetreat);
-                            break;
 
                         // case "StartAction":
                         //    Instances.TaskQueueViewModel.AddLog("开始战斗");
@@ -2243,6 +2250,11 @@ public class AsstProxy
                             if (taskName == "StartExplore")
                             {
                                 Instances.TaskQueueViewModel.AddLog(LocalizationHelper.GetString("Asst.Roguelike.BegunToExplore") + $" {execTimes} " + LocalizationHelper.GetString("Asst.UnitTime"), UiLogColor.Info, splitMode: TaskQueueViewModel.LogCardSplitMode.Before);
+                            }
+                            else if (taskName == "AbandonConfirm")
+                            {
+                                Instances.TaskQueueViewModel.AddLog(LocalizationHelper.GetString("Asst.Roguelike.ExplorationAbandoned"), UiLogColor.ExplorationAbandonedIS);
+                                AchievementTrackerHelper.Instance.AddProgress(AchievementIds.RoguelikeRetreat);
                             }
 
                             break;
@@ -2927,6 +2939,10 @@ public class AsstProxy
 
             case "StageQueueUnableToAgent":
                 Instances.TaskQueueViewModel.AddLog(LocalizationHelper.GetString("Asst.Fight.StageQueue") + $" {subTaskDetails!["stage_code"]} " + LocalizationHelper.GetString("Asst.Fight.UnableToAgent"), UiLogColor.Info);
+                break;
+
+            case "AnnihilationEntryNotFound":
+                Instances.TaskQueueViewModel.AddLog(LocalizationHelper.GetString("Asst.Fight.AnnihilationEntryNotFound"), UiLogColor.Info);
                 break;
 
             case "SwitchThemeSkipped":

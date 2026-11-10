@@ -15,6 +15,7 @@ agreement	Views/UserControl/GuideUserControl.xaml	Visibility="{c:Binding 'GuideS
 auto-show-window	Main/Bootstrapper.cs	Instances.WindowManager.ShowWindow(rootViewModel);
 auto-show-window	Services/Managers/MainWindowManager.cs	WindowManager.ShowWindow(MainWindow);
 auto-show-window	ViewModels/UI/SettingsViewModel.cs	Instances.WindowManager.ShowWindow(Instances.AnnouncementDialogViewModel);
+auto-show-window	ViewModels/UI/TaskQueueViewModel.cs	MaaWpfGui.Helper.WindowManager.ShowWindow(_dailyReportWindow);
 auto-show-window	ViewModels/UserControl/Settings/AchievementSettingsUserControlModel.cs	WindowManager.ShowWindow(_achievementsWindow);
 auto-show-window	ViewModels/UserControl/Settings/ConnectSettingsUserControlModel.cs	WindowManager.ShowWindow(_imagePopupWindow);
 auto-show-window	ViewModels/UserControl/Settings/VersionUpdateSettingsUserControlModel.cs	Instances.WindowManager.ShowWindow(Instances.VersionUpdateDialogViewModel);
