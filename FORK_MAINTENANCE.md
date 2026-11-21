@@ -75,7 +75,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `src/MaaWpfGui/MaaWpfGui.csproj` | 显式引用 `System.Security.Cryptography.Pkcs` 10.0.14，消除 MailKit 传递依赖的 NuGet 安全警告（进入发布包，替换 `externals/System.Security.Cryptography.Pkcs.dll`）。上游自己升级 MimeKit 后可以删掉 |
+| `src/MaaWpfGui/MaaWpfGui.csproj` | 显式引用 `System.Security.Cryptography.Pkcs` 10.0.14，消除 Linux 构建下 MailKit 传递依赖的 NuGet 安全警告，并在 `<NoWarn>` 中加入 `NU1510` 兼容 Windows SDK 10.0.302 的桌面框架裁剪（Linux 下会替换 `externals/System.Security.Cryptography.Pkcs.dll`；Windows 下由桌面框架提供）。上游自己升级 MimeKit 后可以删掉 |
 | `src/Python/asst/updater.py` | Python SDK 的本体更新也改读本仓库 Release（不进 Windows 包，仅保持一致） |
 | `.github/workflows/*` | 早期为 CI 发布做过修改，**现已弃用 Actions**，内容无关紧要 |
 | `tools/ForkRelease/` | 本地发布脚本、不变量检查、扫描基线 |
@@ -242,3 +242,4 @@ gh api repos/Rinyin/MaaAssistantArknights/releases/tags/vNEW -q '{prerelease, dr
 |---|---|---|---|---|
 | v6.21.4 | 2026-11-06 | 上游 `v6.21.4` + fork 补丁（合并基点 `170d04de2`） | `MAA.dll`、`MAA.deps.json`、`externals/System.Security.Cryptography.Pkcs.dll` | `c93303fe129f3e70b4bb27ad505e47c80869d22193d149856c1298ce53c4472a` |
 | v6.22.0 | 2026-11-11 | 上游 `v6.22.0` + fork 补丁（合并基点 `901e01c60`） | `MAA.dll`、`MAA.deps.json`、`externals/System.Security.Cryptography.Pkcs.dll` | `870e47974247a3e018cc36dc3f3d260afd7ea09afae74424d6d2346430a13c5f` |
+| v6.23.0 | 2026-11-22 | 上游 `v6.23.0` + fork 补丁（合并基点 `1eabdb8ab`） | `MAA.dll` | `666159da48eac9fcd2c594c419cf3826342d8577337fbae5acd3e1bb1db149da` |
