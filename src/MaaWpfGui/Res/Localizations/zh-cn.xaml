@@ -837,6 +837,7 @@
     <system:String x:Key="Connection.Config.General">通用模式</system:String>
     <system:String x:Key="Connection.Config.GeneralWithoutScreencapErr">通用模式（屏蔽异常输出）</system:String>
     <system:String x:Key="Connection.Config.LDPlayer">雷电模拟器</system:String>
+    <system:String x:Key="Connection.Config.ModAVD">ModAVD</system:String>
     <system:String x:Key="Connection.Config.MuMu">MuMu 模拟器</system:String>
     <system:String x:Key="Connection.Config.MuMuArm">MuMu 模拟器（Windows ARM）</system:String>
     <system:String x:Key="Connection.Config.Nox">夜神模拟器</system:String>
@@ -879,6 +880,13 @@ C:\leidian\LDPlayer9
     <system:String x:Key="Connection.LdPlayer.ManualSetIndex">手动填写 ｢{key=Connection.LdPlayer.Index}｣</system:String>
     <system:String x:Key="Connection.LdPlayer.OpenglMissing">在所选 LDPlayer 路径中未找到 ldopengl64.dll，请确认安装目录。</system:String>
     <system:String x:Key="Connection.Lost">连接已断开</system:String>
+    <system:String x:Key="Connection.ModAVD.ExtrasNotEnabledMessage">ModAVD 截图增强未生效，请在 ｢{key=Settings.Title} - {key=Settings.Connection.Title} - {key=Connection.Config}｣ 检查 ModAVD 根目录和连接地址</system:String>
+    <system:String x:Key="Connection.ModAVD.LibraryMissing" xml:space="preserve">在所选 ModAVD 根目录中未找到 extras\modavd_extras.dll。
+ModAVD 0.39.0 起的发布包自带这个库，请先更新 ModAVD；也可以从 https://github.com/ModAVD/ModAVDExtras/releases 下载 modavd_extras.dll，放到 ModAVD 根目录（ModAVD.exe 所在目录）的 extras 文件夹中。</system:String>
+    <system:String x:Key="Connection.ModAVD.RootPath">ModAVD 根目录</system:String>
+    <system:String x:Key="Connection.ModAVD.RootPath.Tip" xml:space="preserve">ModAVD 根目录即 ModAVD.exe 所在的目录。MAA 会通过其中的 extras\modavd_extras.dll 直接读取模拟器画面，不经过 ADB。
+实例由连接地址确定，例如 127.0.0.1:20001 或 emulator-20000（adb 端口 = 控制台端口 + 1），不需要填写实例编号。
+留空则只用 ADB 截图；触控照常使用下方选择的触控模式。</system:String>
     <system:String x:Key="Connection.MuMu.BridgeConnection">MuMu 网络桥接模式</system:String>
     <system:String x:Key="Connection.MuMu.BridgeConnection.Tip">除非你知道自己在做什么，否则不要启用此选项</system:String>
     <system:String x:Key="Connection.MuMu.EmulatorPath">MuMu 安装路径</system:String>
@@ -933,6 +941,7 @@ C:\Program Files\Netease\MuMuPlayer。
     <system:String x:Key="Connection.TouchMode.MaaFwAdb">MaaFwAdb（实验功能）</system:String>
     <system:String x:Key="Connection.TouchMode.MaaTouch">MaaTouch（实验功能）</system:String>
     <system:String x:Key="Connection.TouchMode.MiniTouch">Minitouch（默认）</system:String>
+    <system:String x:Key="Connection.TouchMode.ModAvdExtras">ModAVD 触控（实验功能）</system:String>
     <system:String x:Key="Connection.TouchMode.MumuExtras">MuMu 触控增强（实验功能）</system:String>
     <system:String x:Key="Connection.TouchMode.Tip" xml:space="preserve">ADB Input 仅用于兼容系统版本过低的实体机设备，能用其他模式时不要选择。&#10;ADB Input 的滑动容易拖飞，为此滑动速度会设置得非常慢，且滑动距离与其他模式不同，需要精确控制坐标的场景下无法使用。&#10;&#10;MaaFwAdb 不支持额外滑动，依赖额外滑动防止拖飞的页面在该模式下会拖飞。&#10;额外滑动是主滑动结束后沿垂直方向追加一小段的 ｢刹车｣ 滑动（轨迹类似拐 90° 的 L 形），用于抵消列表惯性。</system:String>
     <system:String x:Key="Connection.TryToReconnectByAdb">正在尝试重连</system:String>
@@ -2538,6 +2547,41 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Notifications\Settin
     <system:String x:Key="Toolbox.MiniGame.SecretFront.Event2">游侠</system:String>
     <system:String x:Key="Toolbox.MiniGame.SecretFront.Event3">诡影迷踪</system:String>
     <system:String x:Key="Toolbox.MiniGame.SecretFront.Tip" xml:space="preserve">在选小队界面开始，如有存档须手动删除。&#10;第一次打自己看完把教程关了。&#10;推荐勾选游戏内 ｢继承上一支队伍发回的数据｣</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol">{key=Toolbox.MiniGame.SPA}</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Alliance.Tip">该赛季未开放，无法使用</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Cleared">本局通关</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.ClosedTheme">活动未开放</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Failed">本局失败</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Mode">模式</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Mode.Badge">刷角标（完整通关）</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Mode.Score">刷分（放生速通）</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Runs">通关局数</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.SettlementLog">{0}，已通关 {1}/{2}</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.StrategyLog">{0}：通过 {1}/{2}</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Target">角标目标</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Target.Color">彩色角标（通关 6 次）</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Target.Gold">金色角标（通关 3 次）</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Theme">卫戍协议主题</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Theme.Alliance">盟约</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Theme.Regulation">规程</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Tip.Badge" xml:space="preserve">请使用活动默认皮肤，在有 ｢极速模拟｣ 的活动主界面启动任务。已有存档时，请先手动放弃。
+MAA 会选择未达标的策略，并打完每一局。
+
+本模式最多可借用 30 名助战干员。
+建议先借齐商店优先名单中的干员，再借齐 VI 阶输出干员，名额允许时也尽量借齐 V 阶输出干员，可提高通过率。
+
+自选编队只选六星干员，每阶最多 2 名。优先顺序如下：
+{0}
+
+商店满级后，优先购买以下干员：
+{1}
+其余干员按以下顺序购买：
+自选 VI 阶 → 自选 V 阶 → 普通 VI 阶 → 账号替补（自有干员不足时由游戏提供）→ 普通 V 阶。
+建议场上只留 1 名医疗干员。已有医疗时，只购买能替换场上低阶医疗的更高阶医疗。</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Tip.Score" xml:space="preserve">在活动主界面（有 ｢极速模拟｣ 处）开始任务
+需要使用活动默认皮肤
+在有存档时需要先手动放弃
+不干预对局，快速过回合刷等级奖励</system:String>
     <system:String x:Key="Toolbox.MiniGame.TL.WartimePressCommittee">战时新闻委员会</system:String>
     <system:String x:Key="Toolbox.MiniGame.TL.WartimePressCommittee.Tip" xml:space="preserve">请从活动报纸选择界面（可见报纸名称与 ｢开始组版｣ 按钮）的状态开始。</system:String>
     <system:String x:Key="Toolbox.MiniGame.Title">牛杂</system:String>

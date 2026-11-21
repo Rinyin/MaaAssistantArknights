@@ -26,7 +26,8 @@
     <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!--  文档生成仅为激活 StyleCop 文档规则校验，编译器自身的缺公共文档检查关闭（与 SA1600 裁定一致）；产物不随发布分发  -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!--  NU1510：Windows SDK 10.0.302 桌面框架裁剪会对显式提升的 System.Security.Cryptography.Pkcs 告警，跨平台保留显式引用  -->
+    <NoWarn>$(NoWarn);CS1591;NU1510</NoWarn>
     <PublishDocumentationFile>false</PublishDocumentationFile>
     <BeautyLibsDir>./externals</BeautyLibsDir>
     <BeautyUsePatch>false</BeautyUsePatch>

@@ -837,6 +837,7 @@ MAA를 독립된 새 폴더에 압축 해제하거나, MAA에 속하지 않는 D
     <system:String x:Key="Connection.Config.General">일반 모드</system:String>
     <system:String x:Key="Connection.Config.GeneralWithoutScreencapErr">일반 모드 (예외 출력 차단)</system:String>
     <system:String x:Key="Connection.Config.LDPlayer">LD Player</system:String>
+    <system:String x:Key="Connection.Config.ModAVD">ModAVD</system:String>
     <system:String x:Key="Connection.Config.MuMu">MuMu Player</system:String>
     <system:String x:Key="Connection.Config.MuMuArm">MuMu 에뮬레이터 (Windows ARM)</system:String>
     <system:String x:Key="Connection.Config.Nox">Nox</system:String>
@@ -880,6 +881,13 @@ C:\leidian\LDPlayer9
     <system:String x:Key="Connection.LdPlayer.ManualSetIndex">｢{key=Connection.LdPlayer.Index}｣ 수동 입력</system:String>
     <system:String x:Key="Connection.LdPlayer.OpenglMissing">선택한 LDPlayer 경로에서 ldopengl64.dll을 찾을 수 없습니다. 설치 디렉터리를 확인하세요.</system:String>
     <system:String x:Key="Connection.Lost">연결이 끊어졌습니다</system:String>
+    <system:String x:Key="Connection.ModAVD.ExtrasNotEnabledMessage">ModAVD 스크린샷 강화 기능이 활성화되지 않았습니다. ｢{key=Settings.Title} - {key=Settings.Connection.Title} - {key=Connection.Config}｣에서 ModAVD 루트 폴더와 연결 주소를 확인하세요</system:String>
+    <system:String x:Key="Connection.ModAVD.LibraryMissing" xml:space="preserve">선택한 ModAVD 루트 폴더에서 extras\modavd_extras.dll을 찾을 수 없습니다.
+ModAVD 0.39.0부터 릴리스 패키지에 이 라이브러리가 포함되어 있으니 먼저 ModAVD를 업데이트하세요. 또는 https://github.com/ModAVD/ModAVDExtras/releases 에서 modavd_extras.dll을 다운로드해 ModAVD 루트 폴더(ModAVD.exe가 있는 폴더)의 extras 폴더에 넣으세요.</system:String>
+    <system:String x:Key="Connection.ModAVD.RootPath">ModAVD 루트 폴더</system:String>
+    <system:String x:Key="Connection.ModAVD.RootPath.Tip" xml:space="preserve">ModAVD 루트 폴더는 ModAVD.exe가 있는 폴더입니다. MAA는 그 안의 extras\modavd_extras.dll을 통해 ADB를 거치지 않고 에뮬레이터 화면을 직접 가져옵니다.
+인스턴스는 연결 주소로 정해집니다(예: 127.0.0.1:20001 또는 emulator-20000, adb 포트 = 콘솔 포트 + 1). 인스턴스 번호는 필요 없습니다.
+비워 두면 ADB로만 스크린샷을 가져옵니다. 터치는 아래에서 선택한 터치 모드를 그대로 사용합니다.</system:String>
     <system:String x:Key="Connection.MuMu.BridgeConnection">MuMu 네트워크 브리지 모드</system:String>
     <system:String x:Key="Connection.MuMu.BridgeConnection.Tip">무슨 역할을 하는지 잘 모른다면 이 옵션을 활성화하지 마세요</system:String>
     <system:String x:Key="Connection.MuMu.EmulatorPath">MuMu 에뮬레이터 경로</system:String>
@@ -933,6 +941,7 @@ C:\Program Files\Netease\MuMuPlayer으로 입력해야 합니다.
     <system:String x:Key="Connection.TouchMode.MaaFwAdb">MaaFwAdb (실험적)</system:String>
     <system:String x:Key="Connection.TouchMode.MaaTouch">MaaTouch (실험적)</system:String>
     <system:String x:Key="Connection.TouchMode.MiniTouch">Minitouch (기본값)</system:String>
+    <system:String x:Key="Connection.TouchMode.ModAvdExtras">ModAVD 터치 (실험적)</system:String>
     <system:String x:Key="Connection.TouchMode.MumuExtras">MuMu 터치 (실험적)</system:String>
     <system:String x:Key="Connection.TouchMode.Tip" xml:space="preserve">ADB Input는 OS 버전이 낮은 물리적 기기 전용입니다. 다른 모드를 사용할 수 있다면 ADB Input를 선택하지 마세요.&#10;ADB Input 스와이프는 오프셋이 발생하기 쉬워 스와이프 속도가 매우 느리게 설정되고 스와이프 거리도 다른 모드와 다릅니다. 정확한 좌표 제어가 필요한 상황에서는 사용할 수 없습니다.&#10;&#10;MaaFwAdb는 추가 스와이프를 지원하지 않아, 추가 스와이프로 드래그 과다를 방지하는 페이지는 이 모드에서 과다하게 드래그됩니다.&#10;추가 스와이프는 메인 스와이프가 끝난 후 수직 방향으로 짧게 덧붙이는 ｢브레이크｣ 스와이프(궤적이 90° 꺾이는 L자 형태)로, 목록 관성을 상쇄하는 데 사용됩니다.</system:String>
     <system:String x:Key="Connection.TryToReconnectByAdb">재접속을 시도하고 있습니다</system:String>
@@ -2538,6 +2547,41 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Notifications\Settin
     <system:String x:Key="Toolbox.MiniGame.SecretFront.Event2">레인저</system:String>
     <system:String x:Key="Toolbox.MiniGame.SecretFront.Event3">수상한 그림자</system:String>
     <system:String x:Key="Toolbox.MiniGame.SecretFront.Tip">소대 선택 화면에서 시작합니다. 기존 세이브 데이터가 있으면 수동으로 삭제해야 합니다.\n게임 내  ｢이전 소대의 데이터 전승받기｣  옵션을 체크하는 것을 권장합니다.</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol">{key=Toolbox.MiniGame.SPA}</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Alliance.Tip">이 시즌은 미개방으로 사용할 수 없습니다</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Cleared">이번 판 클리어</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.ClosedTheme">미개방</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Failed">이번 판 실패</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Mode">모드</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Mode.Badge">배지 파밍 (완전 클리어)</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Mode.Score">점수 파밍 (방치 속행)</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Runs">클리어 횟수</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.SettlementLog">{0}, 클리어 {1}/{2}</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.StrategyLog">{0}: 클리어 {1}/{2}</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Target">배지 목표</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Target.Color">색상 배지 (6회 클리어)</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Target.Gold">금색 배지 (3회 클리어)</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Theme">위수 협의 테마</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Theme.Alliance">맹약</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Theme.Regulation">규정 (명칭 임시)</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Tip.Badge" xml:space="preserve">이벤트 기본 스킨을 적용하고 ｢고속 시뮬레이션｣(임시 명칭)이 있는 이벤트 메인 화면에서 시작하세요. 저장된 게임이 있으면 먼저 직접 포기하세요.
+MAA는 목표 클리어 횟수를 채우지 못한 전략을 선택해 매 판 끝까지 진행합니다.
+
+이 모드에서는 지원 유닛을 최대 30명까지 빌릴 수 있습니다.
+클리어 확률을 높이려면 먼저 상점 우선순위에 있는 오퍼레이터를 모두 빌리고, 다음으로 VI등급 딜러를 모두 빌리세요. 자리가 남으면 V등급 딜러도 최대한 빌리는 것이 좋습니다.
+
+사용자 지정 편성에는 등급별로 6성 오퍼레이터를 최대 2명까지 선택합니다. 우선순위는 다음과 같습니다.
+{0}
+
+상점이 최고 레벨에 도달하면 다음 순서로 우선 구매합니다.
+{1}
+나머지 오퍼레이터의 구매 순서는 다음과 같습니다.
+사용자 지정 VI등급 → 사용자 지정 V등급 → 일반 VI등급 → 보유 인원이 부족할 때 게임에서 제공하는 대체 오퍼레이터 → 일반 V등급.
+전장에는 메딕을 1명만 배치하는 것이 좋습니다. 이미 메딕이 있다면 배치 중인 낮은 등급의 메딕을 더 높은 등급으로 교체할 수 있을 때만 구매합니다.</system:String>
+    <system:String x:Key="Toolbox.MiniGame.StrongholdProtocol.Tip.Score" xml:space="preserve">이벤트 메인 화면에서 임무 시작 (아래에 ｢고속 시뮬레이션｣ (명칭 임시))
+기본 이벤트 스킨을 사용해야 합니다
+저장 데이터가 있는 경우 먼저 수동으로 포기해야 합니다
+판에 개입하지 않고 빠르게 라운드를 넘겨 레벨 보상을 획득합니다</system:String>
     <system:String x:Key="Toolbox.MiniGame.TL.WartimePressCommittee">전시 신문 위원회</system:String>
     <system:String x:Key="Toolbox.MiniGame.TL.WartimePressCommittee.Tip" xml:space="preserve">이벤트 신문 선택 화면이 표시된 상태에서 시작하세요</system:String>
     <system:String x:Key="Toolbox.MiniGame.Title">편의 기능</system:String>
